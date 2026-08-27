@@ -1,0 +1,9 @@
+{
+  "module": {
+    "name": "flat_table",
+    "type": "har",
+    "deviceTypes": [
+      "default"
+    ]
+  }
+}
