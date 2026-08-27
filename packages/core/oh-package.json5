@@ -1,5 +1,5 @@
 {
-  "name": "@flat/flat_table",
+  "name": "@flat/core",
   "version": "1.0.0",
   "description": "Please describe the basic information.",
   "main": "Index.ets",

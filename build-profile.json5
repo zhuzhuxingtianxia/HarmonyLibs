@@ -41,6 +41,10 @@
     {
       "name": "flat_table",
       "srcPath": "./packages/flat_table",
+    },
+    {
+      "name": "core",
+      "srcPath": "./packages/core",
     }
   ]
 }
