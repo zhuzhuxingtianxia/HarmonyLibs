@@ -1,10 +1,15 @@
+import { ViewStyle } from '@flat/core';
+import { FlatTable } from '@flat/flat_table';
+
 @Entry
-@Component
+@ComponentV2
 struct Index {
-  @State message: string = 'Hello World';
+  @Local message: string = 'Hello World';
+  @Local style: ViewStyle = {};
 
   build() {
     RelativeContainer() {
+      FlatTable()
       Text(this.message)
         .id('HelloWorld')
         .fontSize($r('app.float.page_text_font_size'))
