@@ -1,5 +1,5 @@
 @ComponentV2
-export struct FlatTable {
+export struct CoreTable {
 
   build() {
 
