@@ -1,0 +1,9 @@
+{
+  "module": {
+    "name": "svg_image",
+    "type": "har",
+    "deviceTypes": [
+      "default"
+    ]
+  }
+}

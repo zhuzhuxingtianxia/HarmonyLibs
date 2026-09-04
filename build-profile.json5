@@ -45,6 +45,10 @@
     {
       "name": "core",
       "srcPath": "./packages/core",
+    },
+    {
+      "name": "svg_image",
+      "srcPath": "./packages/svg_image",
     }
   ]
 }
