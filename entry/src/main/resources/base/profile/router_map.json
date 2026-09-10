@@ -1,0 +1,20 @@
+{
+  "routerMap": [
+    {
+      "name": "SvgImageDemo",
+      "pageSourceFile": "src/main/ets/pages/SvgImageDemo.ets",
+      "buildFunction": "SvgImageDemoBuilder",
+      "data": {
+        "description": "SvgImage 组件测试"
+      }
+    },
+    {
+      "name": "FlatTableDemo",
+      "pageSourceFile": "src/main/ets/pages/FlatTableDemo.ets",
+      "buildFunction": "FlatTableDemoBuilder",
+      "data": {
+        "description": "FlatTable 组件测试"
+      }
+    }
+  ]
+}
