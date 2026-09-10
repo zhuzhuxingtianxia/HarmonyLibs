@@ -46,6 +46,12 @@
           }
         ],
       }
+    ],
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET",
+        "reason": "$string:net_permission_reason"
+      }
     ]
   }
 }
