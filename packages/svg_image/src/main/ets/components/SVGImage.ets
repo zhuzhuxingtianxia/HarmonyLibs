@@ -1,6 +1,13 @@
 import { convertxml, buffer, JSON } from "@kit.ArkTS";
 import { Point } from "@kit.TestKit";
 
+// 用于精细化覆盖样式的对象接口（供 idStyles 和 roleStyles 使用）
+export interface SvgStyleOverride {
+  fill?: ResourceColor;
+  stroke?: ResourceColor;
+  strokeWidth?: number;
+}
+
 interface SvgItemData {
   id: string;
   commands: string;
@@ -20,6 +27,8 @@ interface SvgInheritedStyle {
   strokeLineJoin?: string;
   opacity?: string;
   transform?: SvgTransform;
+  id?: string;
+  role?: string;
 }
 
 interface SvgTransform {
@@ -38,7 +47,7 @@ interface SvgTransform {
  * 1. 支持$rawfile加载的资源
  * 2. 支持$r加载的本地字符串资源
  * 3. 支持svg字符串
- * 4. (暂不支持)按功能角色（Role）、原颜色替换（Color Swap）或 图层ID（Layer ID）进行分色控制
+ * 4. 支持按功能角色（Role）、原颜色映射（ColorSwap）或 图层ID（Layer ID）进行样式覆盖控制, 覆盖逻辑 (ID > Role > ColorSwap)
  * 5. (暂不支持)svg中的动画效果
  * 6. 使用convertxml解析svg的xml
  * 7. 将解析后的数据使用Shape及其子组件渲染成鸿蒙组件
@@ -47,9 +56,17 @@ interface SvgTransform {
 export struct SVGImage {
   @Param @Require source: ResourceStr;
   @Param bounds?: number = undefined;
+
+  // 全局颜色覆盖兜底
   @Param fill?: ResourceColor = undefined;
   @Param stroke?: ResourceColor = undefined;
   @Param strokeWidth?: number = undefined;
+
+  // 控制参数：roleStyles 与 idStyles 支持精细化控制
+  @Param roleStyles?: Record<string, SvgStyleOverride> = undefined;
+  @Param idStyles?: Record<string, SvgStyleOverride> = undefined;
+  // colorSwap 恢复为简单的颜色映射
+  @Param colorSwap?: Record<string, ResourceColor> = undefined;
 
   @Local private items: SvgItemData[] = [];
   @Local private viewBoxX: number = 0;
@@ -59,7 +76,7 @@ export struct SVGImage {
   @Local private svgWidth: number = 0;
   @Local private svgHeight: number = 0;
 
-  @Monitor('source', 'fill', 'stroke', 'strokeWidth')
+  @Monitor('source', 'fill', 'stroke', 'strokeWidth', 'roleStyles', 'colorSwap', 'idStyles')
   onPropsChanged(): void {
     this.parseSvg();
   }
@@ -356,7 +373,18 @@ export struct SVGImage {
     };
   }
 
-  // ★ 核心修复：追踪路径轨迹 cx、cy，彻底支持 H 和 V 转换为绝对 L（消除形变）
+  // 简单的颜色映射匹配colorSwap
+  private getSwapColor(color: string): ResourceColor | undefined {
+    if (!this.colorSwap) return undefined;
+    const normColor = color.trim().toLowerCase();
+    for (const key of Object.keys(this.colorSwap)) {
+      if (key.trim().toLowerCase() === normColor) {
+        return this.colorSwap[key];
+      }
+    }
+    return undefined;
+  }
+
   private translatePath(d: string, transform: SvgTransform): string {
     if (!d) return '';
     if (transform.a === 1 && transform.b === 0 && transform.c === 0 && transform.d === 1 && transform.tx === 0 && transform.ty === 0) return d;
@@ -383,7 +411,7 @@ export struct SVGImage {
         }
         if (i >= tokens.length) break;
       }
-
+      // 追踪路径轨迹 cx、cy，支持 H 和 V 转换为绝对 L（消除形变）
       if (currentCmd === 'M' || currentCmd === 'L' || currentCmd === 'T') {
         const x = parseFloat(tokens[i]); const y = parseFloat(tokens[i + 1]);
         cx = x; cy = y;
@@ -395,8 +423,10 @@ export struct SVGImage {
       }
       else if (currentCmd === 'm') {
         const x = parseFloat(tokens[i]); const y = parseFloat(tokens[i + 1]);
-        cx += x; cy += y;
-        startX = cx; startY = cy;
+        cx += x;
+        cy += y;
+        startX = cx;
+        startY = cy;
         if (result === '') {
           const p = this.applyPointTransform(cx, cy, transform);
           result += ` M ${p.x} ${p.y}`;
@@ -524,7 +554,7 @@ export struct SVGImage {
     return result.trim();
   }
 
-  // 这里的 rect 绘制同样被优化：直接用 L 取代 H 和 V
+  // rect绘制优化：直接用 L 取代 H 和 V
   private rectToPath(attrs: Record<string, string>, transform: SvgTransform): string {
     const origX = parseFloat(attrs['x'] ?? '0') || 0;
     const origY = parseFloat(attrs['y'] ?? '0') || 0;
@@ -582,6 +612,8 @@ export struct SVGImage {
       const parentTf = parentStyle.transform ?? { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0, sx: 1, sy: 1 };
 
       const currentStyle: SvgInheritedStyle = {
+        id: attrs['id'] ?? parentStyle.id,
+        role: attrs['role'] ?? attrs['data-role'] ?? parentStyle.role,
         fill: attrs['fill'] ?? parentStyle.fill,
         stroke: attrs['stroke'] ?? parentStyle.stroke,
         strokeWidth: attrs['stroke-width'] ?? attrs['strokeWidth'] ?? parentStyle.strokeWidth,
@@ -624,39 +656,87 @@ export struct SVGImage {
 
       if (!commands.trim()) continue;
 
+      // ==========================================
+      // ====== 基础颜色及 Override 处理流程 ======
+      // ==========================================
+
+      // 1. 基础 Fill 解析
       let resolvedFill: ResourceColor = 'none';
-      if (this.fill !== undefined) {
-        resolvedFill = currentStyle.fill === 'none' ? 'none' : this.fill;
+      let originalFillString: string | undefined = undefined;
+
+      if (currentStyle.fill === 'none') {
+        resolvedFill = 'none';
+      } else if (currentStyle.fill) {
+        resolvedFill = currentStyle.fill === 'currentColor' ? (this.stroke ?? '#000000') : currentStyle.fill;
+        originalFillString = currentStyle.fill === 'currentColor' ? undefined : currentStyle.fill;
       } else {
-        if (currentStyle.fill === 'none') {
-          resolvedFill = 'none';
-        } else if (currentStyle.fill) {
-          resolvedFill = currentStyle.fill === 'currentColor' ? (this.stroke ?? '#000000') : currentStyle.fill;
-        } else {
-          resolvedFill = (currentStyle.stroke && currentStyle.stroke !== 'none') ? 'none' : '#000000';
-        }
+        resolvedFill = (currentStyle.stroke && currentStyle.stroke !== 'none') ? 'none' : '#000000';
+        originalFillString = '#000000';
       }
 
+      let finalFill = resolvedFill;
+      if (this.fill !== undefined && resolvedFill !== 'none') {
+        finalFill = this.fill;
+      }
+
+      // 2. 基础 Stroke 解析
       let resolvedStroke: ResourceColor = 'none';
-      if (this.stroke !== undefined) {
-        resolvedStroke = (currentStyle.stroke && currentStyle.stroke !== 'none') || currentStyle.fill === 'none'
-          ? this.stroke : (currentStyle.stroke === 'none' ? 'none' : this.stroke);
+      let originalStrokeString: string | undefined = undefined;
+
+      if (!currentStyle.stroke || currentStyle.stroke === 'none') {
+        resolvedStroke = 'none';
       } else {
-        if (!currentStyle.stroke || currentStyle.stroke === 'none') {
-          resolvedStroke = 'none';
-        } else {
-          resolvedStroke = currentStyle.stroke === 'currentColor' ? (this.fill ?? '#000000') : currentStyle.stroke;
-        }
+        resolvedStroke = currentStyle.stroke === 'currentColor' ? (this.fill ?? '#000000') : currentStyle.stroke;
+        originalStrokeString = currentStyle.stroke === 'currentColor' ? undefined : currentStyle.stroke;
       }
 
-      let resolvedStrokeWidth: number = 1;
+      let finalStroke = resolvedStroke;
+      if (this.stroke !== undefined) {
+        finalStroke = (currentStyle.stroke && currentStyle.stroke !== 'none') || currentStyle.fill === 'none'
+          ? this.stroke : (currentStyle.stroke === 'none' ? 'none' : this.stroke);
+      }
+
+      // 3. 提取各个维度的覆盖对象（匹配优先级：ID > Role > ColorSwap）
+      const idOverride = (this.idStyles && currentStyle.id) ? this.idStyles[currentStyle.id] : undefined;
+      const roleOverride = (this.roleStyles && currentStyle.role) ? this.roleStyles[currentStyle.role] : undefined;
+
+      // colorSwapStyles 恢复为简单的颜色替换（对 fill 或 stroke 匹配到的原颜色直接替换）
+      const swapFillColor = originalFillString ? this.getSwapColor(originalFillString) : undefined;
+      const swapStrokeColor = originalStrokeString ? this.getSwapColor(originalStrokeString) : undefined;
+
+      // 4. 应用覆盖逻辑 (ID > Role > ColorSwap)
+      if (idOverride?.fill !== undefined) {
+        finalFill = idOverride.fill;
+      } else if (roleOverride?.fill !== undefined) {
+        finalFill = roleOverride.fill;
+      } else if (swapFillColor !== undefined) {
+        finalFill = swapFillColor;
+      }
+
+      if (idOverride?.stroke !== undefined) {
+        finalStroke = idOverride.stroke;
+      } else if (roleOverride?.stroke !== undefined) {
+        finalStroke = roleOverride.stroke;
+      } else if (swapStrokeColor !== undefined) {
+        finalStroke = swapStrokeColor;
+      }
+
+      // 5. 基础 StrokeWidth 解析及覆盖
+      let finalStrokeWidth: number = 1;
+
       if (this.strokeWidth !== undefined) {
-        resolvedStrokeWidth = this.strokeWidth;
+        finalStrokeWidth = this.strokeWidth;
       } else if (currentStyle.strokeWidth) {
         const parsedSw = parseFloat(currentStyle.strokeWidth);
-        resolvedStrokeWidth = isNaN(parsedSw) ? 1 : parsedSw;
+        finalStrokeWidth = isNaN(parsedSw) ? 1 : parsedSw;
       } else {
-        resolvedStrokeWidth = resolvedStroke === 'none' ? 0 : 1;
+        finalStrokeWidth = finalStroke === 'none' ? 0 : 1;
+      }
+
+      if (idOverride?.strokeWidth !== undefined) {
+        finalStrokeWidth = idOverride.strokeWidth;
+      } else if (roleOverride?.strokeWidth !== undefined) {
+        finalStrokeWidth = roleOverride.strokeWidth;
       }
 
       const opacity = currentStyle.opacity ? parseFloat(currentStyle.opacity) : 1;
@@ -664,9 +744,9 @@ export struct SVGImage {
       output.push({
         id: `svg_item_${output.length}`,
         commands: commands,
-        fill: resolvedFill,
-        stroke: resolvedStroke,
-        strokeWidth: resolvedStrokeWidth,
+        fill: finalFill,
+        stroke: finalStroke,
+        strokeWidth: finalStrokeWidth,
         strokeLineCap: this.parseLineCap(currentStyle.strokeLineCap),
         strokeLineJoin: this.parseLineJoin(currentStyle.strokeLineJoin),
         opacity: isNaN(opacity) ? 1 : opacity
