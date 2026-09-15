@@ -49,7 +49,7 @@ struct SvgImageDemo {
             SVGImage({source: $rawfile('box.svg'), bounds: 100})
             SVGImage({source: $rawfile('gradient_test.svg'), bounds: 100})
             SVGImage({source: $rawfile('ic_launcher_round.svg'), bounds: 100})
-            SVGImage({source: $rawfile('lego.svg'), bounds: 300})
+            SVGImage({source: $rawfile('lego.svg'), bounds: 100})
             SVGImage({source: $rawfile('line.svg'), bounds: 100})
             SVGImage({source: $rawfile('mask_all_props.svg'), bounds: 100})
             SVGImage({source: $rawfile('mask_common_props.svg'), bounds: 100})
@@ -71,6 +71,7 @@ struct SvgImageDemo {
         }
       }
       .layoutWeight(1)
+      .padding({left: 20})
       .edgeEffect(EdgeEffect.Spring, {alwaysEnabled: true})
 
     }

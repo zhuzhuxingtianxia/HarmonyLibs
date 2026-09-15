@@ -326,7 +326,7 @@ export struct SVGImage {
     let current: SvgTransform = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0, sx: 1, sy: 1 };
     if (!transformStr) return current;
 
-    const regex = /(matrix|translate|scale|rotate)\s*\(([^)]+)\)/g;
+    const regex = /(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]+)\)/g;
     let match: RegExpExecArray | null;
 
     while ((match = regex.exec(transformStr)) !== null) {
@@ -337,17 +337,18 @@ export struct SVGImage {
       if (type === 'matrix' && args.length >= 6) {
         step = { a: args[0], b: args[1], c: args[2], d: args[3], tx: args[4], ty: args[5], sx: Math.hypot(args[0], args[1]), sy: Math.hypot(args[2], args[3]) };
       } else if (type === 'translate') {
-        const tx = args[0] || 0;
-        const ty = args[1] !== undefined ? args[1] : 0;
+        const tx = isNaN(args[0]) ? 0 : args[0];
+        const ty = args[1] !== undefined && !isNaN(args[1]) ? args[1] : 0;
         step = { a: 1, b: 0, c: 0, d: 1, tx, ty, sx: 1, sy: 1 };
       } else if (type === 'scale') {
-        const sx = args[0] !== undefined ? args[0] : 1;
-        const sy = args[1] !== undefined ? args[1] : sx;
+        const sx = args[0] !== undefined && !isNaN(args[0]) ? args[0] : 1;
+        const sy = args[1] !== undefined && !isNaN(args[1]) ? args[1] : sx;
         step = { a: sx, b: 0, c: 0, d: sy, tx: 0, ty: 0, sx: Math.abs(sx), sy: Math.abs(sy) };
       } else if (type === 'rotate') {
-        const rad = (args[0] || 0) * Math.PI / 180;
+        const angle = isNaN(args[0]) ? 0 : args[0];
+        const rad = angle * Math.PI / 180;
         const cos = Math.cos(rad); const sin = Math.sin(rad);
-        if (args.length >= 3) {
+        if (args.length >= 3 && !isNaN(args[1]) && !isNaN(args[2])) {
           const cx = args[1]; const cy = args[2];
           const tx = cx - cx * cos + cy * sin;
           const ty = cy - cx * sin - cy * cos;
@@ -355,6 +356,14 @@ export struct SVGImage {
         } else {
           step = { a: cos, b: sin, c: -sin, d: cos, tx: 0, ty: 0, sx: 1, sy: 1 };
         }
+      } else if (type === 'skewX') {
+        const angle = isNaN(args[0]) ? 0 : args[0];
+        const tan = Math.tan(angle * Math.PI / 180);
+        step = { a: 1, b: 0, c: tan, d: 1, tx: 0, ty: 0, sx: 1, sy: Math.hypot(tan, 1) };
+      } else if (type === 'skewY') {
+        const angle = isNaN(args[0]) ? 0 : args[0];
+        const tan = Math.tan(angle * Math.PI / 180);
+        step = { a: 1, b: tan, c: 0, d: 1, tx: 0, ty: 0, sx: Math.hypot(1, tan), sy: 1 };
       }
       current = this.multiplyMatrix(current, step);
     }
@@ -556,6 +565,19 @@ export struct SVGImage {
     return result.trim();
   }
 
+  private ellipseToPath(cx: number, cy: number, rx: number, ry: number, transform: SvgTransform): string {
+    if (rx <= 0 || ry <= 0) return '';
+    const k = 0.5522847498307935;
+    const ox = rx * k;
+    const oy = ry * k;
+    const rawD = `M ${cx} ${cy - ry} ` +
+      `C ${cx + ox} ${cy - ry} ${cx + rx} ${cy - oy} ${cx + rx} ${cy} ` +
+      `C ${cx + rx} ${cy + oy} ${cx + ox} ${cy + ry} ${cx} ${cy + ry} ` +
+      `C ${cx - ox} ${cy + ry} ${cx - rx} ${cy + oy} ${cx - rx} ${cy} ` +
+      `C ${cx - rx} ${cy - oy} ${cx - ox} ${cy - ry} ${cx} ${cy - ry} Z`;
+    return this.translatePath(rawD, transform);
+  }
+
   // rect绘制优化：直接用 L 取代 H 和 V
   private rectToPath(attrs: Record<string, string>, transform: SvgTransform): string {
     const origX = parseFloat(attrs['x'] ?? '0') || 0;
@@ -647,14 +669,16 @@ export struct SVGImage {
       } else if (tag === 'rect') {
         commands = this.rectToPath(attrs, currentTransform);
       } else if (tag === 'circle') {
-        const p = this.applyPointTransform(parseFloat(attrs['cx'] ?? '0') || 0, parseFloat(attrs['cy'] ?? '0') || 0, currentTransform);
-        const r = (parseFloat(attrs['r'] ?? '0') || 0) * Math.min(currentTransform.sx, currentTransform.sy);
-        if (r > 0) commands = `M ${p.x - r} ${p.y} A ${r} ${r} 0 1 0 ${p.x + r} ${p.y} A ${r} ${r} 0 1 0 ${p.x - r} ${p.y} Z`;
+        const cx = parseFloat(attrs['cx'] ?? '0') || 0;
+        const cy = parseFloat(attrs['cy'] ?? '0') || 0;
+        const r = parseFloat(attrs['r'] ?? '0') || 0;
+        commands = this.ellipseToPath(cx, cy, r, r, currentTransform);
       } else if (tag === 'ellipse') {
-        const p = this.applyPointTransform(parseFloat(attrs['cx'] ?? '0') || 0, parseFloat(attrs['cy'] ?? '0') || 0, currentTransform);
-        const rx = (parseFloat(attrs['rx'] ?? '0') || 0) * currentTransform.sx;
-        const ry = (parseFloat(attrs['ry'] ?? '0') || 0) * currentTransform.sy;
-        if (rx > 0 && ry > 0) commands = `M ${p.x - rx} ${p.y} A ${rx} ${ry} 0 1 0 ${p.x + rx} ${p.y} A ${rx} ${ry} 0 1 0 ${p.x - rx} ${p.y} Z`;
+        const cx = parseFloat(attrs['cx'] ?? '0') || 0;
+        const cy = parseFloat(attrs['cy'] ?? '0') || 0;
+        const rx = parseFloat(attrs['rx'] ?? '0') || 0;
+        const ry = parseFloat(attrs['ry'] ?? '0') || 0;
+        commands = this.ellipseToPath(cx, cy, rx, ry, currentTransform);
       }
 
       if (!commands.trim()) continue;
