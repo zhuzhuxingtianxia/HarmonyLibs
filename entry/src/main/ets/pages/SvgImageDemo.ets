@@ -14,7 +14,26 @@ struct SvgImageDemo {
 
   build() {
     NavDestination(){
-      SVGImage({source: $rawfile('svg_clock.svg'), bounds: 80})
+      Column({space: 20}){
+        Row({space: 10}) {
+          SVGImage({source: $rawfile('visitor_icon.svg')})
+            .backgroundColor(Color.Black)
+
+          SVGImage({source: $rawfile('visitor_icon.svg'), bounds: 30, stroke: '#000000'})
+
+          SVGImage({source: $rawfile('visitor_icon.svg'), bounds: 60, stroke: '#f00000'})
+        }
+        Row({space: 10}) {
+          SVGImage({source: $rawfile('svg_clock.svg'), bounds: 80})
+        }
+        Row({space: 10}) {
+          SVGImage({source: $rawfile('mic-animated.svg'), bounds: 80})
+        }
+        Row({space: 10}) {
+          SVGImage({source: $rawfile('svg_animate.svg'), bounds: 80})
+        }
+      }
+
     }
     .title(this.title)
     .onReady((context: NavDestinationContext) => {

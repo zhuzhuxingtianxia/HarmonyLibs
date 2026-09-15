@@ -33,7 +33,7 @@ interface SvgTransform {
  * 1. 支持$rawfile加载的资源
  * 2. 支持$r加载的本地字符串资源
  * 3. 支持svg字符串
- * 4. (暂不支持)按功能角色（Role）、原颜色替换（Color Swap）或 图层IDLayer ID）进行分色控制
+ * 4. (暂不支持)按功能角色（Role）、原颜色替换（Color Swap）或 图层ID（Layer ID）进行分色控制
  * 5. (暂不支持)svg中的动画效果
  * 6. 使用convertxml解析svg的xml
  * 7. 将解析后的数据使用Shape及其子组件渲染成鸿蒙组件
@@ -302,39 +302,42 @@ export struct SVGImage {
   }
 
   private parseTransform(transformStr?: string): SvgTransform {
-    let tx = 0;
-    let ty = 0;
-    let sx = 1;
-    let sy = 1;
+    let a = 1, b = 0, c = 0, d = 1, tx = 0, ty = 0;
+
     if (!transformStr) {
-      return { tx, ty, sx, sy };
+      return { tx: 0, ty: 0, sx: 1, sy: 1 };
     }
 
-    // 1. matrix(a, b, c, d, e, f)
-    const matrixMatch = transformStr.match(/matrix\(\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*,\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*,\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*,\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*,\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*,\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*\)/);
-    if (matrixMatch) {
-      sx = parseFloat(matrixMatch[1]) || 1;
-      sy = parseFloat(matrixMatch[4]) || 1;
-      tx = parseFloat(matrixMatch[5]) || 0;
-      ty = parseFloat(matrixMatch[6]) || 0;
-      return { tx, ty, sx, sy };
+    const regex = /(matrix|translate|scale)\s*\(([^)]+)\)/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(transformStr)) !== null) {
+      const type = match[1];
+      const args = match[2].trim().split(/[\s,]+/).map((v: string) => parseFloat(v));
+
+      let ma = 1, mb = 0, mc = 0, md = 1, mtx = 0, mty = 0;
+
+      if (type === 'matrix' && args.length >= 6) {
+        ma = args[0]; mb = args[1]; mc = args[2]; md = args[3]; mtx = args[4]; mty = args[5];
+      } else if (type === 'translate') {
+        mtx = args[0] || 0;
+        mty = args[1] !== undefined ? args[1] : 0;
+      } else if (type === 'scale') {
+        ma = args[0] !== undefined ? args[0] : 1;
+        md = args[1] !== undefined ? args[1] : ma;
+      }
+
+      const newA = a * ma + c * mb;
+      const newB = b * ma + d * mb;
+      const newC = a * mc + c * md;
+      const newD = b * mc + d * md;
+      const newTx = a * mtx + c * mty + tx;
+      const newTy = b * mtx + d * mty + ty;
+
+      a = newA; b = newB; c = newC; d = newD; tx = newTx; ty = newTy;
     }
 
-    // 2. translate(x, y) or translate(x)
-    const translateMatch = transformStr.match(/translate\(\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*(?:[,\s]\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?))?\s*\)/);
-    if (translateMatch) {
-      tx = parseFloat(translateMatch[1]) || 0;
-      ty = translateMatch[2] !== undefined ? (parseFloat(translateMatch[2]) || 0) : 0;
-    }
-
-    // 3. scale(x, y) or scale(x)
-    const scaleMatch = transformStr.match(/scale\(\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*(?:[,\s]\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?))?\s*\)/);
-    if (scaleMatch) {
-      sx = parseFloat(scaleMatch[1]) || 1;
-      sy = scaleMatch[2] !== undefined ? (parseFloat(scaleMatch[2]) || 1) : sx;
-    }
-
-    return { tx, ty, sx, sy };
+    return { tx, ty, sx: a, sy: d };
   }
 
   private translatePath(d: string, transform: SvgTransform = {tx:0, ty:0, sx: 1, sy: 1}): string {
@@ -425,21 +428,21 @@ export struct SVGImage {
           result += ` ${x1} ${y1} ${x} ${y}`;
           i += 4;
         } else if (currentCmd === 'A') {
-          const rx = parseFloat(tokens[i]) * transform.sx;
-          const ry = parseFloat(tokens[i + 1]) * transform.sy;
+          const rx = parseFloat(tokens[i]) * Math.abs(transform.sx);
+          const ry = parseFloat(tokens[i + 1]) * Math.abs(transform.sy);
           const rot = tokens[i + 2];
           const large = tokens[i + 3];
-          const sweep = tokens[i + 4];
+          const sweep = (transform.sx * transform.sy < 0) ? (tokens[i + 4] === '1' ? '0' : '1') : tokens[i + 4];
           const x = (parseFloat(tokens[i + 5]) * transform.sx) + transform.tx;
           const y = (parseFloat(tokens[i + 6]) * transform.sy) + transform.ty;
           result += ` ${rx} ${ry} ${rot} ${large} ${sweep} ${x} ${y}`;
           i += 7;
         } else if (currentCmd === 'a') {
-          const rx = parseFloat(tokens[i]) * transform.sx;
-          const ry = parseFloat(tokens[i + 1]) * transform.sy;
+          const rx = parseFloat(tokens[i]) * Math.abs(transform.sx);
+          const ry = parseFloat(tokens[i + 1]) * Math.abs(transform.sy);
           const rot = tokens[i + 2];
           const large = tokens[i + 3];
-          const sweep = tokens[i + 4];
+          const sweep = (transform.sx * transform.sy < 0) ? (tokens[i + 4] === '1' ? '0' : '1') : tokens[i + 4];
           const x = parseFloat(tokens[i + 5]) * transform.sx;
           const y = parseFloat(tokens[i + 6]) * transform.sy;
           result += ` ${rx} ${ry} ${rot} ${large} ${sweep} ${x} ${y}`;
@@ -466,6 +469,8 @@ export struct SVGImage {
 
       const attrs = this.getNodeAttributes(child);
       const tf = this.parseTransform(attrs['transform']);
+      const parentTf = parentStyle.transform ?? { tx: 0, ty: 0, sx: 1, sy: 1 };
+
       const currentStyle: SvgInheritedStyle = {
         fill: attrs['fill'] ?? parentStyle.fill,
         stroke: attrs['stroke'] ?? parentStyle.stroke,
@@ -474,10 +479,10 @@ export struct SVGImage {
         strokeLineJoin: attrs['stroke-linejoin'] ?? attrs['strokeLinejoin'] ?? parentStyle.strokeLineJoin,
         opacity: attrs['opacity'] ?? parentStyle.opacity,
         transform: {
-          tx: (parentStyle.transform?.tx ?? 0) + (tf.tx * (parentStyle.transform?.sx ?? 1)),
-          ty: (parentStyle.transform?.ty ?? 0) + (tf.ty * (parentStyle.transform?.sy ?? 1)),
-          sx: (parentStyle.transform?.sx ?? 1) * tf.sx,
-          sy: (parentStyle.transform?.sy ?? 1) * tf.sy
+          tx: parentTf.tx + tf.tx * parentTf.sx,
+          ty: parentTf.ty + tf.ty * parentTf.sy,
+          sx: parentTf.sx * tf.sx,
+          sy: parentTf.sy * tf.sy
         },
       };
 
@@ -510,15 +515,15 @@ export struct SVGImage {
       } else if (tag === 'circle') {
         const cx = ((parseFloat(attrs['cx'] ?? '0') || 0) * curSx) + curTx;
         const cy = ((parseFloat(attrs['cy'] ?? '0') || 0) * curSy) + curTy;
-        const r = (parseFloat(attrs['r'] ?? '0') || 0) * Math.min(curSx, curSy);
+        const r = (parseFloat(attrs['r'] ?? '0') || 0) * Math.min(Math.abs(curSx), Math.abs(curSy));
         if (r > 0) {
           commands = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
         }
       } else if (tag === 'ellipse') {
         const cx = ((parseFloat(attrs['cx'] ?? '0') || 0) * curSx) + curTx;
         const cy = ((parseFloat(attrs['cy'] ?? '0') || 0) * curSy) + curTy;
-        const rx = (parseFloat(attrs['rx'] ?? '0') || 0) * curSx;
-        const ry = (parseFloat(attrs['ry'] ?? '0') || 0) * curSy;
+        const rx = (parseFloat(attrs['rx'] ?? '0') || 0) * Math.abs(curSx);
+        const ry = (parseFloat(attrs['ry'] ?? '0') || 0) * Math.abs(curSy);
         if (rx > 0 && ry > 0) {
           commands = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
         }
@@ -596,19 +601,19 @@ export struct SVGImage {
     return d;
   }
 
-  private rectToPath(attrs: Record<string, string>,transform: SvgTransform = {tx:0, ty:0, sx: 1, sy: 1}): string {
+  private rectToPath(attrs: Record<string, string>, transform: SvgTransform = {tx:0, ty:0, sx: 1, sy: 1}): string {
     const x = ((parseFloat(attrs['x'] ?? '0') || 0) * transform.sx) + transform.tx;
     const y = ((parseFloat(attrs['y'] ?? '0') || 0) * transform.sy) + transform.ty;
     const w = (parseFloat(attrs['width'] ?? '0') || 0) * transform.sx;
     const h = (parseFloat(attrs['height'] ?? '0') || 0) * transform.sy;
-    if (w <= 0 || h <= 0) return '';
+    if (w === 0 || h === 0) return '';
 
-    let rx = (parseFloat(attrs['rx'] ?? '0') || 0) * transform.sx;
-    let ry = (parseFloat(attrs['ry'] ?? '0') || 0) * transform.sy;
+    let rx = (parseFloat(attrs['rx'] ?? '0') || 0) * Math.abs(transform.sx);
+    let ry = (parseFloat(attrs['ry'] ?? '0') || 0) * Math.abs(transform.sy);
     if (rx > 0 && ry === 0) ry = rx;
     if (ry > 0 && rx === 0) rx = ry;
-    rx = Math.min(rx, w / 2);
-    ry = Math.min(ry, h / 2);
+    rx = Math.min(rx, Math.abs(w) / 2);
+    ry = Math.min(ry, Math.abs(h) / 2);
 
     if (rx > 0 && ry > 0) {
       return `M ${x + rx} ${y} ` +
@@ -643,8 +648,6 @@ export struct SVGImage {
   }
 
   build() {
-    // 使用 Stack 叠加多个 Shape 组件，每个 Shape 包含一个 Path
-    // 避免 ForEach 在 Shape 内部导致 viewPort 坐标系映射异常
     Stack() {
       ForEach(this.items, (item: SvgItemData) => {
         Shape() {

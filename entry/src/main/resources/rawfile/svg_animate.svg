@@ -5,7 +5,7 @@
       <stop offset="0%" stop-color="#33363F" />
       <stop offset="100%" stop-color="#23252B" />
     </linearGradient>
-    
+
     <!-- 定义文字渐变色 -->
     <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#FFFFFF" />
@@ -14,11 +14,11 @@
   </defs>
 
   <style>
-    .text { 
-      font-family: Arial, sans-serif; 
-      font-size: 20px; 
-      font-weight: 400; 
-      letter-spacing: 2px; 
+    .text {
+      font-family: Arial, sans-serif;
+      font-size: 20px;
+      font-weight: 400;
+      letter-spacing: 2px;
     }
     .btn-group {
       cursor: pointer;
@@ -37,9 +37,9 @@
 
   <!-- 逻辑中心点 (200, 200) -->
   <g transform="translate(200, 200)">
-    
+
     <!-- 中心圆圈 -->
-    <circle class="btn-circle" cx="0" cy="25" r="55" fill="none" stroke="#5CDB78" stroke-width="2.5" 
+    <circle class="btn-circle" cx="0" cy="25" r="55" fill="none" stroke="#5CDB78" stroke-width="2.5"
             style="transition: all 0.3s ease;">
       <!-- 圆圈呼吸动画 -->
       <animate attributeName="r" values="55;57;55" dur="3s" repeatCount="indefinite" />
@@ -51,17 +51,17 @@
       <rect x="-9" y="-10" width="18" height="25" rx="1" />
       <!-- 箭头底部 -->
       <path d="M -20 5 L 0 25 L 20 5 Z" />
-      
+
       <!-- 箭头上下轻微抖动动画 (模拟等待下载) -->
-      <animateTransform attributeName="transform" type="translate" 
+      <animateTransform attributeName="transform" type="translate"
                         values="0 0; 0 3; 0 0" dur="1.5s" repeatCount="indefinite" />
     </g>
 
     <!-- 下载进度圆环 (模拟加载效果) -->
-    <circle cx="0" cy="25" r="55" fill="none" stroke="#FFFFFF" stroke-width="2.5" 
+    <circle cx="0" cy="25" r="55" fill="none" stroke="#FFFFFF" stroke-width="2.5"
             stroke-linecap="round" stroke-dasharray="345" stroke-dashoffset="345" opacity="0.6">
       <!-- 进度条动画 (从 0 到 100%) -->
-      <animate attributeName="stroke-dashoffset" from="345" to="0" 
+      <animate attributeName="stroke-dashoffset" from="345" to="0"
                dur="3s" repeatCount="indefinite" />
     </circle>
 
