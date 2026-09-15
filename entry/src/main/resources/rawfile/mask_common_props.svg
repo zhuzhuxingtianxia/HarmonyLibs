@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 870" width="600" height="870">
+  <defs>
+    <!-- CSS 规则:测试 class 属性 (parseAttributesStyle -> classNames + parseStyle) -->
+    <style>
+      .halfOpacity { opacity: 0.5; }
+    </style>
+
+    <!-- 1. id 属性 (parseAttributesCore):最基本的引用标识 -->
+    <mask id="maskId">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 2. fill 属性 (parseAttributesStyle):mask 自身 fill 被子元素继承 -->
+    <mask id="maskFill" fill="white">
+      <rect x="0" y="0" width="200" height="120"/>
+    </mask>
+
+    <!-- 3. style 属性 (parseAttributesStyle -> parseStyle) -->
+    <mask id="maskStyle" style="opacity:0.5">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 4. class 属性 (parseAttributesStyle -> classNames) -->
+    <mask id="maskClass" class="halfOpacity">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 5. transform 属性 (parseAttributesStyle) -->
+    <mask id="maskTransform" transform="translate(20,20)">
+      <rect x="0" y="0" width="160" height="80" fill="white"/>
+    </mask>
+
+    <!-- 6. opacity 属性 (parseAttributesStyle) -->
+    <mask id="maskOpacity" opacity="0.5">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 7. 嵌套 mask:mask 自身的 mask 属性 (parseAttributesStyle 的 mask 分支) -->
+    <mask id="maskInner">
+      <rect x="0" y="0" width="100" height="60" fill="white"/>
+    </mask>
+    <mask id="maskOuter" mask="url(#maskInner)">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 8. 条件处理属性 systemLanguage (parseAttributesConditional) -->
+    <mask id="maskCond" systemLanguage="zh">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 9. clip-path 属性 (parseAttributesStyle):mask 自身被裁剪 -->
+    <clipPath id="clipHalf">
+      <rect x="0" y="0" width="100" height="120"/>
+    </clipPath>
+    <mask id="maskClipPath" clip-path="url(#clipHalf)">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 10. fill-opacity 属性 (parseAttributesStyle) -->
+    <mask id="maskFillOpacity" fill-opacity="0.5">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 11. stroke + stroke-opacity 属性 (parseAttributesStyle) -->
+    <mask id="maskStroke" stroke="#666666" stroke-opacity="0.8">
+      <rect x="0" y="0" width="200" height="120" fill="white" stroke="#666666" stroke-width="4"/>
+    </mask>
+
+    <!-- 12. requiredFeatures 条件处理 (parseAttributesConditional) -->
+    <mask id="maskReqFeat" requiredFeatures="http://www.w3.org/TR/SVG11/feature#BasicStructure">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 13. requiredExtensions 条件处理 (parseAttributesConditional) -->
+    <mask id="maskReqExt" requiredExtensions="http://example.com/custom">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="300" y="24" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#333">Mask Common Props Test</text>
+
+  <!-- 1. id:蓝色完整显示 -->
+  <g transform="translate(20,50)">
+    <rect x="0" y="0" width="200" height="120" fill="#3b82f6" mask="url(#maskId)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">1. id (parseAttributesCore)</text>
+  </g>
+
+  <!-- 2. fill:红色完整显示(子 rect 继承 mask 的 fill=white) -->
+  <g transform="translate(230,50)">
+    <rect x="0" y="0" width="200" height="120" fill="#ef4444" mask="url(#maskFill)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">2. fill (inherited by child)</text>
+  </g>
+
+  <!-- 3. style:绿色半透明 -->
+  <g transform="translate(440,50)">
+    <rect x="0" y="0" width="140" height="120" fill="#10b981" mask="url(#maskStyle)"/>
+    <text x="70" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">3. style="opacity:0.5"</text>
+  </g>
+
+  <!-- 4. class:紫色半透明(CSS 规则) -->
+  <g transform="translate(20,230)">
+    <rect x="0" y="0" width="200" height="120" fill="#8b5cf6" mask="url(#maskClass)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">4. class="halfOpacity"</text>
+  </g>
+
+  <!-- 5. transform:橙色偏移显示 -->
+  <g transform="translate(230,230)">
+    <rect x="0" y="0" width="200" height="120" fill="#f59e0b" mask="url(#maskTransform)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">5. transform="translate(20,20)"</text>
+  </g>
+
+  <!-- 6. opacity:粉色半透明 -->
+  <g transform="translate(440,230)">
+    <rect x="0" y="0" width="140" height="120" fill="#ec4899" mask="url(#maskOpacity)"/>
+    <text x="70" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">6. opacity="0.5"</text>
+  </g>
+
+  <!-- 7. 嵌套 mask:青色,maskOuter 引用 maskInner -->
+  <g transform="translate(20,410)">
+    <rect x="0" y="0" width="200" height="120" fill="#14b8a6" mask="url(#maskOuter)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">7. nested mask (mask attr)</text>
+  </g>
+
+  <!-- 8. systemLanguage:棕色,条件处理 -->
+  <g transform="translate(230,410)">
+    <rect x="0" y="0" width="200" height="120" fill="#a16207" mask="url(#maskCond)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">8. systemLanguage="zh"</text>
+  </g>
+
+  <!-- 9. clip-path:灰色,mask 被 clipHalf 裁剪只显示左半 -->
+  <g transform="translate(20,560)">
+    <rect x="0" y="0" width="200" height="120" fill="#6b7280" mask="url(#maskClipPath)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">9. clip-path="url(#clipHalf)"</text>
+  </g>
+
+  <!-- 10. fill-opacity:橙色半透明 -->
+  <g transform="translate(230,560)">
+    <rect x="0" y="0" width="200" height="120" fill="#f97316" mask="url(#maskFillOpacity)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">10. fill-opacity="0.5"</text>
+  </g>
+
+  <!-- 11. stroke + stroke-opacity:青色,带描边半透明 -->
+  <g transform="translate(440,560)">
+    <rect x="0" y="0" width="140" height="120" fill="#06b6d4" mask="url(#maskStroke)"/>
+    <text x="70" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">11. stroke + stroke-opacity</text>
+  </g>
+
+  <!-- 12. requiredFeatures:紫色,条件处理 -->
+  <g transform="translate(20,710)">
+    <rect x="0" y="0" width="200" height="120" fill="#7c3aed" mask="url(#maskReqFeat)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">12. requiredFeatures</text>
+  </g>
+
+  <!-- 13. requiredExtensions:粉色,条件处理 -->
+  <g transform="translate(230,710)">
+    <rect x="0" y="0" width="200" height="120" fill="#db2777" mask="url(#maskReqExt)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">13. requiredExtensions</text>
+  </g>
+</svg>

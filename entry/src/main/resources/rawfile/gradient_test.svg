@@ -1,0 +1,22 @@
+<svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
+    <!-- 定义渐变色 -->
+    <defs>
+        <!-- 线性渐变：从左到右 -->
+        <linearGradient id="linearGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#FF0080" />  <!-- 粉色 -->
+            <stop offset="100%" stop-color="#7928CA" /> <!-- 紫色 -->
+        </linearGradient>
+
+        <!-- 径向渐变：从中心向外 -->
+        <radialGradient id="radialGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#00F2FE" />  <!-- 青色 -->
+            <stop offset="100%" stop-color="#4FACFE" /> <!-- 蓝色 -->
+        </radialGradient>
+    </defs>
+
+    <!-- 使用线性渐变的上方矩形 -->
+    <rect x="20" y="20" width="160" height="160" rx="15" fill="url(#linearGrad)" />
+
+    <!-- 使用径向渐变的下方矩形 -->
+    <rect x="220" y="20" width="160" height="160" rx="15" fill="url(#radialGrad)" />
+</svg>

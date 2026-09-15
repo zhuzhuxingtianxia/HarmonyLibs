@@ -1,7 +1,7 @@
 {
   "name": "@flat/svg_image",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "一个轻量级的svg渲染库.",
   "main": "Index.ets",
   "author": "",
   "license": "Apache-2.0",

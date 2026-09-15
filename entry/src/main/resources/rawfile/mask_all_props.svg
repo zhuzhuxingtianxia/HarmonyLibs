@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" width="600" height="420">
+  <defs>
+    <style>
+      .fullOpacity { opacity: 1; }
+    </style>
+
+    <!-- 1. maskUnits(objectBoundingBox) + fill + opacity (自有+通用) -->
+    <mask id="maskAll1" maskUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%"
+          fill="white" opacity="0.8">
+      <rect x="0" y="0" width="200" height="120"/>
+    </mask>
+
+    <!-- 2. maskContentUnits + transform + style + class -->
+    <mask id="maskAll2" maskContentUnits="objectBoundingBox" transform="translate(10,10)"
+          style="opacity:0.8" class="fullOpacity">
+      <rect x="0" y="0" width="0.5" height="0.5" fill="white"/>
+    </mask>
+
+    <!-- 3. 全自有属性 + systemLanguage 条件处理 -->
+    <mask id="maskAll3" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse"
+          x="0" y="0" width="200" height="120" systemLanguage="zh">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 4. P1 crash test 专用 mask (简单,无附加属性) -->
+    <mask id="maskCrash">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 5. 嵌套 mask 状态泄漏回归用例-->
+    <mask id="innerMask" maskUnits="userSpaceOnUse" x="25%" y="25%" width="50%" height="50%">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+    <mask id="outerMask" maskContentUnits="objectBoundingBox" mask="url(#innerMask)">
+      <rect x="0" y="0" width="1" height="1" fill="white"/>
+    </mask>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="300" y="24" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#333">Mask All Props Test</text>
+
+  <!-- 1. maskUnits=OBB + fill + opacity -->
+  <g transform="translate(20,50)">
+    <rect x="0" y="0" width="200" height="120" fill="#3b82f6" mask="url(#maskAll1)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">1. maskUnits=OBB + fill + opacity</text>
+  </g>
+
+  <!-- 2. maskContentUnits=OBB + transform + style + class -->
+  <g transform="translate(230,50)">
+    <rect x="0" y="0" width="200" height="120" fill="#ef4444" mask="url(#maskAll2)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">2. contentUnits=OBB + transform + style + class</text>
+  </g>
+
+  <!-- 3. 全自有属性 + systemLanguage -->
+  <g transform="translate(440,50)">
+    <rect x="0" y="0" width="140" height="120" fill="#10b981" mask="url(#maskAll3)"/>
+    <text x="70" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">3. all own + systemLanguage</text>
+  </g>
+
+  <!-- 4. P1 crash test: mask 直接应用在 <g> 上。
+       Group 元素的 boundingBox 恒为 null,renderMask 对 bbox.width 解引用 -> TypeError,渲染中断。 -->
+  <g transform="translate(20,230)" mask="url(#maskCrash)">
+    <rect x="0" y="0" width="200" height="60" fill="#3b82f6"/>
+    <text x="100" y="75" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">4. mask on group (P1 crash test)</text>
+  </g>
+
+  <!-- 5. 嵌套 mask 状态泄漏:外层 contentUnits=OBB 引用内层 userSpaceOnUse mask。 -->
+  <g transform="translate(230,230)">
+    <rect x="0" y="0" width="200" height="120" fill="#f59e0b" mask="url(#outerMask)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">5. nested mask (OBB leak)</text>
+  </g>
+</svg>

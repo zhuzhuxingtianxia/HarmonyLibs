@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 580" width="600" height="580">
+  <defs>
+    <!-- 1. 纯白矩形 mask:被遮罩对象应完整显示 -->
+    <mask id="maskFull">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 2. 纯黑矩形 mask:被遮罩对象应完全不可见 -->
+    <mask id="maskNone">
+      <rect x="0" y="0" width="200" height="120" fill="black"/>
+    </mask>
+
+    <!-- 3. 线性渐变 mask:从白到黑,产生淡出效果 -->
+    <mask id="maskFade">
+      <linearGradient id="fadeGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="white"/>
+        <stop offset="1" stop-color="black"/>
+      </linearGradient>
+      <rect x="0" y="0" width="200" height="120" fill="url(#fadeGrad)"/>
+    </mask>
+
+    <!-- 4. 圆形 mask:只显示圆形区域 -->
+    <mask id="maskCircle">
+      <rect x="0" y="0" width="200" height="120" fill="black"/>
+      <circle cx="100" cy="60" r="55" fill="white"/>
+    </mask>
+
+    <!-- 5. 文字 mask:用白色文字做遮罩,只显示文字形状 -->
+    <mask id="maskText">
+      <rect x="0" y="0" width="200" height="120" fill="black"/>
+      <text x="100" y="75" text-anchor="middle"
+            font-size="56" font-weight="bold"
+            font-family="sans-serif" fill="white">MASK</text>
+    </mask>
+
+    <!-- 6. 纯绿 mask:sRGB 亮度 0.7151×255≈182(71%),NTSC 亮度 0.587×255≈150(59%),差异最大 -->
+    <mask id="maskGreen">
+      <rect x="0" y="0" width="200" height="120" fill="green"/>
+    </mask>
+
+    <!-- 7. 纯红 mask:sRGB 亮度 0.2127×255≈54(21%),NTSC 亮度 0.299×255≈76(30%) -->
+    <mask id="maskRed">
+      <rect x="0" y="0" width="200" height="120" fill="red"/>
+    </mask>
+
+    <!-- 8. 纯蓝 mask:sRGB 亮度 0.0722×255≈18(7%),NTSC 亮度 0.114×255≈29(11%) -->
+    <mask id="maskBlue">
+      <rect x="0" y="0" width="200" height="120" fill="blue"/>
+    </mask>
+
+    <!-- 9. 彩色渐变 mask:红→绿→蓝横向渐变,展示三原色亮度差异过渡 -->
+    <mask id="maskColorFade">
+      <linearGradient id="colorGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="red"/>
+        <stop offset="0.5" stop-color="green"/>
+        <stop offset="1" stop-color="blue"/>
+      </linearGradient>
+      <rect x="0" y="0" width="200" height="120" fill="url(#colorGrad)"/>
+    </mask>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="300" y="24" text-anchor="middle"
+        font-size="16" font-family="sans-serif" fill="#333">Mask Test</text>
+
+  <!-- 1. 纯白 mask:应完整显示蓝色矩形 -->
+  <g transform="translate(20,40)">
+    <rect x="0" y="0" width="200" height="120" fill="#3b82f6" mask="url(#maskFull)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">1. white mask (full)</text>
+  </g>
+
+  <!-- 2. 纯黑 mask:应看不见任何内容 -->
+  <g transform="translate(230,40)">
+    <rect x="0" y="0" width="200" height="120" fill="#ef4444" mask="url(#maskNone)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">2. black mask (none)</text>
+  </g>
+
+  <!-- 3. 渐变 mask:蓝色从左满到右消失 -->
+  <g transform="translate(440,40)" >
+    <rect x="0" y="0" width="140" height="120" fill="#10b981" mask="url(#maskFade)"/>
+    <text x="70" y="140" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">3. fade mask</text>
+  </g>
+
+  <!-- 4. 圆形 mask:紫色只显示圆内 -->
+  <g transform="translate(20,200)">
+    <rect x="0" y="0" width="200" height="120" fill="#8b5cf6" mask="url(#maskCircle)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">4. circle mask</text>
+  </g>
+
+  <!-- 5. 文字 mask:橙色只显示 MASK 字形 -->
+  <g transform="translate(230,200)">
+    <rect x="0" y="0" width="200" height="120" fill="#f59e0b" mask="url(#maskText)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">5. text mask</text>
+  </g>
+
+  <!-- 6. 绿色 mask:sRGB 亮度最高(71%),内容应较清晰可见 -->
+  <g transform="translate(20,360)">
+    <rect x="0" y="0" width="180" height="120" fill="#3b82f6" mask="url(#maskGreen)"/>
+    <text x="90" y="140" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">6. green mask (bright)</text>
+  </g>
+
+  <!-- 7. 红色 mask:sRGB 亮度低(21%),内容应半透明 -->
+  <g transform="translate(210,360)">
+    <rect x="0" y="0" width="180" height="120" fill="#3b82f6" mask="url(#maskRed)"/>
+    <text x="90" y="140" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">7. red mask (mid)</text>
+  </g>
+
+  <!-- 8. 蓝色 mask:sRGB 亮度最低(7%),内容应几乎不可见 -->
+  <g transform="translate(400,360)">
+    <rect x="0" y="0" width="180" height="120" fill="#3b82f6" mask="url(#maskBlue)"/>
+    <text x="90" y="140" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">8. blue mask (dim)</text>
+  </g>
+
+  <!-- 9. 彩色渐变 mask:左红→中绿→右蓝,亮度呈 低→高→低 过渡 -->
+  <g transform="translate(20,520)">
+    <rect x="0" y="0" width="560" height="40" fill="#3b82f6" mask="url(#maskColorFade)"/>
+    <text x="280" y="55" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#666">9. color fade mask (red→green→blue luminance)</text>
+  </g>
+</svg>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" width="600" height="420">
+  <defs>
+    <!-- 1. 默认值:不写自有属性,验证 maskUnits=userSpaceOnUse,x/y=-10%,width/height=120% -->
+    <mask id="maskDefault">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 2. maskUnits=userSpaceOnUse + 绝对坐标 x/y/width/height -->
+    <mask id="maskUserSpace" maskUnits="userSpaceOnUse" x="20" y="20" width="160" height="80">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 3. maskUnits=objectBoundingBox + 百分比 (相对目标对象 bbox) -->
+    <mask id="maskOBB" maskUnits="objectBoundingBox" x="0%" y="0%" width="50%" height="50%">
+      <rect x="0" y="0" width="200" height="120" fill="white"/>
+    </mask>
+
+    <!-- 4. maskContentUnits=userSpaceOnUse 显式 (子元素用绝对坐标) -->
+    <mask id="maskContentUser" maskContentUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="100" height="60" fill="white"/>
+    </mask>
+
+    <!-- 5. maskContentUnits=objectBoundingBox (子元素坐标相对目标对象 bbox 比例) -->
+    <mask id="maskContentOBB" maskContentUnits="objectBoundingBox">
+      <rect x="0" y="0" width="0.5" height="0.5" fill="white"/>
+    </mask>
+
+    <!-- 6. 组合:maskUnits + maskContentUnits 都 objectBoundingBox -->
+    <mask id="maskCombo" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox"
+          x="0%" y="0%" width="100%" height="100%">
+      <rect x="0" y="0" width="0.5" height="0.5" fill="white"/>
+    </mask>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="300" y="24" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#333">Mask Own Props Test</text>
+
+  <!-- 1. 默认值:蓝色矩形完整显示(默认 120% 覆盖) -->
+  <g transform="translate(20,50)">
+    <rect x="0" y="0" width="200" height="120" fill="#3b82f6" mask="url(#maskDefault)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">1. default (userSpaceOnUse, -10%/-10%/120%/120%)</text>
+  </g>
+
+  <!-- 2. userSpaceOnUse + 绝对坐标:只显示 (20,20)-(180,100) 区域 -->
+  <g transform="translate(230,50)">
+    <rect x="0" y="0" width="200" height="120" fill="#ef4444" mask="url(#maskUserSpace)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">2. userSpaceOnUse + abs x/y/w/h</text>
+  </g>
+
+  <!-- 3. objectBoundingBox + 百分比:只显示左上 1/4 -->
+  <g transform="translate(440,50)">
+    <rect x="0" y="0" width="140" height="120" fill="#10b981" mask="url(#maskOBB)"/>
+    <text x="70" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">3. objectBoundingBox + 50%</text>
+  </g>
+
+  <!-- 4. maskContentUnits=userSpaceOnUse:子元素 100x60 显示左上角 -->
+  <g transform="translate(20,230)">
+    <rect x="0" y="0" width="200" height="120" fill="#8b5cf6" mask="url(#maskContentUser)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">4. contentUnits=userSpaceOnUse</text>
+  </g>
+
+  <!-- 5. maskContentUnits=objectBoundingBox:子元素 0.5x0.5 显示左上 1/4 -->
+  <g transform="translate(230,230)">
+    <rect x="0" y="0" width="200" height="120" fill="#f59e0b" mask="url(#maskContentOBB)"/>
+    <text x="100" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">5. contentUnits=objectBoundingBox</text>
+  </g>
+
+  <!-- 6. 组合:maskUnits + maskContentUnits 都 objectBoundingBox -->
+  <g transform="translate(440,230)">
+    <rect x="0" y="0" width="140" height="120" fill="#ec4899" mask="url(#maskCombo)"/>
+    <text x="70" y="140" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#666">6. combo (both OBB)</text>
+  </g>
+</svg>
