@@ -24,6 +24,10 @@ struct SvgImageDemo {
           SVGImage({source: $rawfile('visitor_icon.svg'), bounds: 60, stroke: '#f00000'})
         }
         Row({space: 10}) {
+          SVGImage({source: $rawfile('fill_svg.svg')})
+          SVGImage({source: $rawfile('fill_svg.svg'), bounds: 80})
+        }
+        Row({space: 10}) {
           SVGImage({source: $rawfile('svg_clock.svg'), bounds: 80})
         }
         Row({space: 10}) {

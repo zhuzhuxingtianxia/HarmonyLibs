@@ -1,4 +1,5 @@
 import { convertxml, buffer, JSON } from "@kit.ArkTS";
+import { Point } from "@kit.TestKit";
 
 interface SvgItemData {
   id: string;
@@ -22,6 +23,10 @@ interface SvgInheritedStyle {
 }
 
 interface SvgTransform {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
   tx: number;
   ty: number;
   sx: number;
@@ -70,8 +75,7 @@ export struct SVGImage {
     if (this.svgWidth > 0) {
       return this.svgWidth;
     }
-    const size = this.viewBoxWidth > 0 ? this.viewBoxWidth : 24;
-    return size;
+    return this.viewBoxWidth > 0 ? this.viewBoxWidth : 24;
   }
 
   private get renderHeight(): Length {
@@ -81,8 +85,7 @@ export struct SVGImage {
     if (this.svgHeight > 0) {
       return this.svgHeight;
     }
-    const size = this.viewBoxHeight > 0 ? this.viewBoxHeight : 24;
-    return size;
+    return this.viewBoxHeight > 0 ? this.viewBoxHeight : 24;
   }
 
   private loadSvgContent(): string {
@@ -108,7 +111,6 @@ export struct SVGImage {
 
     if (typeof this.source === 'object') {
       const res = this.source as Resource;
-
       // 1. 尝试通过 $rawfile 加载 (res.type == 30000 或 res.params[0] 路径)
       if (Array.isArray(res.params) && typeof res.params[0] === 'string' && res.params[0].length > 0) {
         try {
@@ -120,7 +122,6 @@ export struct SVGImage {
           console.log('getRawFileContentSync error:', JSON.stringify(error));
         }
       }
-
       // 2. 尝试通过 $r 本地字符串资源加载
       try {
         const str = getContext(this).resourceManager.getStringSync(res);
@@ -130,7 +131,6 @@ export struct SVGImage {
       } catch (error) {
         console.log('getStringSync error:', JSON.stringify(error));
       }
-
       // 3. 尝试通过 $r 媒体资源加载
       try {
         const mediaBytes = getContext(this).resourceManager.getMediaContentSync(res);
@@ -141,7 +141,6 @@ export struct SVGImage {
         console.log('getMediaContentSync error:', JSON.stringify(error));
       }
     }
-
     return '';
   }
 
@@ -224,12 +223,7 @@ export struct SVGImage {
         strokeLineCap: svgAttrs['stroke-linecap'] ?? svgAttrs['strokeLinecap'],
         strokeLineJoin: svgAttrs['stroke-linejoin'] ?? svgAttrs['strokeLinejoin'],
         opacity: svgAttrs['opacity'],
-        transform: {
-          tx: 0,
-          ty: 0,
-          sx: 1,
-          sy: 1
-        },
+        transform: { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0, sx: 1, sy: 1 },
       };
 
       this.traverseNodes(svgNode, inheritedStyle, collected);
@@ -262,15 +256,13 @@ export struct SVGImage {
     const rawAttrs = (node['_attributes'] ?? node['attributes']) as Record<string, string> | undefined;
     const result: Record<string, string> = {};
     if (rawAttrs && typeof rawAttrs === 'object') {
-      const keys = Object.keys(rawAttrs);
-      for (const k of keys) {
+      for (const k of Object.keys(rawAttrs)) {
         result[k] = String(rawAttrs[k]);
       }
     }
     if (result['style']) {
       const styleObj = this.parseStyleAttr(result['style']);
-      const styleKeys = Object.keys(styleObj);
-      for (const sk of styleKeys) {
+      for (const sk of Object.keys(styleObj)) {
         if (!result[sk]) {
           result[sk] = styleObj[sk];
         }
@@ -301,175 +293,293 @@ export struct SVGImage {
     return result;
   }
 
+  private multiplyMatrix(m1: SvgTransform, m2: SvgTransform): SvgTransform {
+    const a = m1.a * m2.a + m1.c * m2.b;
+    const b = m1.b * m2.a + m1.d * m2.b;
+    const c = m1.a * m2.c + m1.c * m2.d;
+    const d = m1.b * m2.c + m1.d * m2.d;
+    const tx = m1.a * m2.tx + m1.c * m2.ty + m1.tx;
+    const ty = m1.b * m2.tx + m1.d * m2.ty + m1.ty;
+    return { a, b, c, d, tx, ty, sx: Math.hypot(a, b), sy: Math.hypot(c, d) };
+  }
+
   private parseTransform(transformStr?: string): SvgTransform {
-    let a = 1, b = 0, c = 0, d = 1, tx = 0, ty = 0;
+    let current: SvgTransform = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0, sx: 1, sy: 1 };
+    if (!transformStr) return current;
 
-    if (!transformStr) {
-      return { tx: 0, ty: 0, sx: 1, sy: 1 };
-    }
-
-    const regex = /(matrix|translate|scale)\s*\(([^)]+)\)/g;
+    const regex = /(matrix|translate|scale|rotate)\s*\(([^)]+)\)/g;
     let match: RegExpExecArray | null;
 
     while ((match = regex.exec(transformStr)) !== null) {
       const type = match[1];
       const args = match[2].trim().split(/[\s,]+/).map((v: string) => parseFloat(v));
-
-      let ma = 1, mb = 0, mc = 0, md = 1, mtx = 0, mty = 0;
+      let step: SvgTransform = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0, sx: 1, sy: 1 };
 
       if (type === 'matrix' && args.length >= 6) {
-        ma = args[0]; mb = args[1]; mc = args[2]; md = args[3]; mtx = args[4]; mty = args[5];
+        step = { a: args[0], b: args[1], c: args[2], d: args[3], tx: args[4], ty: args[5], sx: Math.hypot(args[0], args[1]), sy: Math.hypot(args[2], args[3]) };
       } else if (type === 'translate') {
-        mtx = args[0] || 0;
-        mty = args[1] !== undefined ? args[1] : 0;
+        const tx = args[0] || 0;
+        const ty = args[1] !== undefined ? args[1] : 0;
+        step = { a: 1, b: 0, c: 0, d: 1, tx, ty, sx: 1, sy: 1 };
       } else if (type === 'scale') {
-        ma = args[0] !== undefined ? args[0] : 1;
-        md = args[1] !== undefined ? args[1] : ma;
+        const sx = args[0] !== undefined ? args[0] : 1;
+        const sy = args[1] !== undefined ? args[1] : sx;
+        step = { a: sx, b: 0, c: 0, d: sy, tx: 0, ty: 0, sx: Math.abs(sx), sy: Math.abs(sy) };
+      } else if (type === 'rotate') {
+        const rad = (args[0] || 0) * Math.PI / 180;
+        const cos = Math.cos(rad); const sin = Math.sin(rad);
+        if (args.length >= 3) {
+          const cx = args[1]; const cy = args[2];
+          const tx = cx - cx * cos + cy * sin;
+          const ty = cy - cx * sin - cy * cos;
+          step = { a: cos, b: sin, c: -sin, d: cos, tx, ty, sx: 1, sy: 1 };
+        } else {
+          step = { a: cos, b: sin, c: -sin, d: cos, tx: 0, ty: 0, sx: 1, sy: 1 };
+        }
       }
-
-      const newA = a * ma + c * mb;
-      const newB = b * ma + d * mb;
-      const newC = a * mc + c * md;
-      const newD = b * mc + d * md;
-      const newTx = a * mtx + c * mty + tx;
-      const newTy = b * mtx + d * mty + ty;
-
-      a = newA; b = newB; c = newC; d = newD; tx = newTx; ty = newTy;
+      current = this.multiplyMatrix(current, step);
     }
-
-    return { tx, ty, sx: a, sy: d };
+    return current;
   }
 
-  private translatePath(d: string, transform: SvgTransform = {tx:0, ty:0, sx: 1, sy: 1}): string {
-    if (!d || (transform.tx === 0 && transform.ty === 0 && transform.sx === 1 && transform.sy === 1)) {
-      return d;
-    }
+  private applyPointTransform(x: number, y: number, transform: SvgTransform): Point {
+    return {
+      x: transform.a * x + transform.c * y + transform.tx,
+      y: transform.b * x + transform.d * y + transform.ty
+    };
+  }
+
+  private applyVectorTransform(x: number, y: number, transform: SvgTransform): Point {
+    return {
+      x: transform.a * x + transform.c * y,
+      y: transform.b * x + transform.d * y
+    };
+  }
+
+  // ★ 核心修复：追踪路径轨迹 cx、cy，彻底支持 H 和 V 转换为绝对 L（消除形变）
+  private translatePath(d: string, transform: SvgTransform): string {
+    if (!d) return '';
+    if (transform.a === 1 && transform.b === 0 && transform.c === 0 && transform.d === 1 && transform.tx === 0 && transform.ty === 0) return d;
+
     const tokens = d.match(/[a-df-z]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/gi);
-    if (!tokens) {
-      return d;
-    }
+    if (!tokens) return d;
 
     let result = '';
     let currentCmd = '';
     let i = 0;
 
+    let cx = 0; let cy = 0;
+    let startX = 0; let startY = 0;
+
     while (i < tokens.length) {
-      const token = tokens[i];
+      let token = tokens[i];
       if (/^[a-df-z]$/i.test(token)) {
         currentCmd = token;
-        result += (result ? ' ' : '') + currentCmd;
         i++;
-      } else {
-        if (currentCmd === 'M' || currentCmd === 'L' || currentCmd === 'T') {
-          const x = (parseFloat(tokens[i]) * transform.sx) + transform.tx;
-          const y = (parseFloat(tokens[i + 1]) * transform.sy) + transform.ty;
-          result += ` ${x} ${y}`;
-          i += 2;
-          if (currentCmd === 'M') {
-            currentCmd = 'L';
-          }
-        } else if (currentCmd === 'm') {
-          if (i === 1) {
-            const x = (parseFloat(tokens[i]) * transform.sx) + transform.tx;
-            const y = (parseFloat(tokens[i + 1]) * transform.sy) + transform.ty;
-            result += ` ${x} ${y}`;
-          } else {
-            result += ` ${parseFloat(tokens[i]) * transform.sx} ${parseFloat(tokens[i + 1]) * transform.sy}`;
-          }
-          i += 2;
-          currentCmd = 'l';
-        } else if (currentCmd === 'l' || currentCmd === 't') {
-          result += ` ${parseFloat(tokens[i]) * transform.sx} ${parseFloat(tokens[i + 1]) * transform.sy}`;
-          i += 2;
-        } else if (currentCmd === 'H') {
-          const x = (parseFloat(tokens[i]) * transform.sx) + transform.tx;
-          result += ` ${x}`;
-          i += 1;
-        } else if (currentCmd === 'h') {
-          result += ` ${parseFloat(tokens[i]) * transform.sx}`;
-          i += 1;
-        } else if (currentCmd === 'V') {
-          const y = (parseFloat(tokens[i]) * transform.sy) + transform.ty;
-          result += ` ${y}`;
-          i += 1;
-        } else if (currentCmd === 'v') {
-          result += ` ${parseFloat(tokens[i]) * transform.sy}`;
-          i += 1;
-        } else if (currentCmd === 'C') {
-          const x1 = (parseFloat(tokens[i]) * transform.sx) + transform.tx;
-          const y1 = (parseFloat(tokens[i + 1]) * transform.sy) + transform.ty;
-          const x2 = (parseFloat(tokens[i + 2]) * transform.sx) + transform.tx;
-          const y2 = (parseFloat(tokens[i + 3]) * transform.sy) + transform.ty;
-          const x = (parseFloat(tokens[i + 4]) * transform.sx) + transform.tx;
-          const y = (parseFloat(tokens[i + 5]) * transform.sy) + transform.ty;
-          result += ` ${x1} ${y1} ${x2} ${y2} ${x} ${y}`;
-          i += 6;
-        } else if (currentCmd === 'c') {
-          const x1 = parseFloat(tokens[i]) * transform.sx;
-          const y1 = parseFloat(tokens[i + 1]) * transform.sy;
-          const x2 = parseFloat(tokens[i + 2]) * transform.sx;
-          const y2 = parseFloat(tokens[i + 3]) * transform.sy;
-          const x = parseFloat(tokens[i + 4]) * transform.sx;
-          const y = parseFloat(tokens[i + 5]) * transform.sy;
-          result += ` ${x1} ${y1} ${x2} ${y2} ${x} ${y}`;
-          i += 6;
-        } else if (currentCmd === 'S' || currentCmd === 'Q') {
-          const x1 = (parseFloat(tokens[i]) * transform.sx) + transform.tx;
-          const y1 = (parseFloat(tokens[i + 1]) * transform.sy) + transform.ty;
-          const x = (parseFloat(tokens[i + 2]) * transform.sx) + transform.tx;
-          const y = (parseFloat(tokens[i + 3]) * transform.sy) + transform.ty;
-          result += ` ${x1} ${y1} ${x} ${y}`;
-          i += 4;
-        } else if (currentCmd === 's' || currentCmd === 'q') {
-          const x1 = parseFloat(tokens[i]) * transform.sx;
-          const y1 = parseFloat(tokens[i + 1]) * transform.sy;
-          const x = parseFloat(tokens[i + 2]) * transform.sx;
-          const y = parseFloat(tokens[i + 3]) * transform.sy;
-          result += ` ${x1} ${y1} ${x} ${y}`;
-          i += 4;
-        } else if (currentCmd === 'A') {
-          const rx = parseFloat(tokens[i]) * Math.abs(transform.sx);
-          const ry = parseFloat(tokens[i + 1]) * Math.abs(transform.sy);
-          const rot = tokens[i + 2];
-          const large = tokens[i + 3];
-          const sweep = (transform.sx * transform.sy < 0) ? (tokens[i + 4] === '1' ? '0' : '1') : tokens[i + 4];
-          const x = (parseFloat(tokens[i + 5]) * transform.sx) + transform.tx;
-          const y = (parseFloat(tokens[i + 6]) * transform.sy) + transform.ty;
-          result += ` ${rx} ${ry} ${rot} ${large} ${sweep} ${x} ${y}`;
-          i += 7;
-        } else if (currentCmd === 'a') {
-          const rx = parseFloat(tokens[i]) * Math.abs(transform.sx);
-          const ry = parseFloat(tokens[i + 1]) * Math.abs(transform.sy);
-          const rot = tokens[i + 2];
-          const large = tokens[i + 3];
-          const sweep = (transform.sx * transform.sy < 0) ? (tokens[i + 4] === '1' ? '0' : '1') : tokens[i + 4];
-          const x = parseFloat(tokens[i + 5]) * transform.sx;
-          const y = parseFloat(tokens[i + 6]) * transform.sy;
-          result += ` ${rx} ${ry} ${rot} ${large} ${sweep} ${x} ${y}`;
-          i += 7;
-        } else if (currentCmd === 'Z' || currentCmd === 'z') {
-          i++;
-        } else {
-          result += ` ${tokens[i]}`;
-          i++;
+        if (currentCmd === 'Z' || currentCmd === 'z') {
+          cx = startX; cy = startY;
+          result += ' Z';
+          continue;
         }
+        if (i >= tokens.length) break;
+      }
+
+      if (currentCmd === 'M' || currentCmd === 'L' || currentCmd === 'T') {
+        const x = parseFloat(tokens[i]); const y = parseFloat(tokens[i + 1]);
+        cx = x; cy = y;
+        if (currentCmd === 'M') { startX = x; startY = y; }
+        const p = this.applyPointTransform(x, y, transform);
+        result += ` ${currentCmd} ${p.x} ${p.y}`;
+        i += 2;
+        if (currentCmd === 'M') currentCmd = 'L';
+      }
+      else if (currentCmd === 'm') {
+        const x = parseFloat(tokens[i]); const y = parseFloat(tokens[i + 1]);
+        cx += x; cy += y;
+        startX = cx; startY = cy;
+        if (result === '') {
+          const p = this.applyPointTransform(cx, cy, transform);
+          result += ` M ${p.x} ${p.y}`;
+        } else {
+          const v = this.applyVectorTransform(x, y, transform);
+          result += ` m ${v.x} ${v.y}`;
+        }
+        i += 2;
+        currentCmd = 'l';
+      }
+      else if (currentCmd === 'l' || currentCmd === 't') {
+        const x = parseFloat(tokens[i]); const y = parseFloat(tokens[i + 1]);
+        cx += x; cy += y;
+        const v = this.applyVectorTransform(x, y, transform);
+        result += ` ${currentCmd} ${v.x} ${v.y}`;
+        i += 2;
+      }
+      else if (currentCmd === 'H') {
+        const x = parseFloat(tokens[i]);
+        cx = x;
+        const p = this.applyPointTransform(cx, cy, transform);
+        result += ` L ${p.x} ${p.y}`;
+        i += 1;
+      }
+      else if (currentCmd === 'h') {
+        const x = parseFloat(tokens[i]);
+        cx += x;
+        const v = this.applyVectorTransform(x, 0, transform);
+        result += ` l ${v.x} ${v.y}`;
+        i += 1;
+      }
+      else if (currentCmd === 'V') {
+        const y = parseFloat(tokens[i]);
+        cy = y;
+        const p = this.applyPointTransform(cx, cy, transform);
+        result += ` L ${p.x} ${p.y}`;
+        i += 1;
+      }
+      else if (currentCmd === 'v') {
+        const y = parseFloat(tokens[i]);
+        cy += y;
+        const v = this.applyVectorTransform(0, y, transform);
+        result += ` l ${v.x} ${v.y}`;
+        i += 1;
+      }
+      else if (currentCmd === 'C') {
+        const x1 = parseFloat(tokens[i]); const y1 = parseFloat(tokens[i + 1]);
+        const x2 = parseFloat(tokens[i + 2]); const y2 = parseFloat(tokens[i + 3]);
+        const x = parseFloat(tokens[i + 4]); const y = parseFloat(tokens[i + 5]);
+        cx = x; cy = y;
+        const p1 = this.applyPointTransform(x1, y1, transform);
+        const p2 = this.applyPointTransform(x2, y2, transform);
+        const p = this.applyPointTransform(x, y, transform);
+        result += ` C ${p1.x} ${p1.y} ${p2.x} ${p2.y} ${p.x} ${p.y}`;
+        i += 6;
+      }
+      else if (currentCmd === 'c') {
+        const dx1 = parseFloat(tokens[i]); const dy1 = parseFloat(tokens[i + 1]);
+        const dx2 = parseFloat(tokens[i + 2]); const dy2 = parseFloat(tokens[i + 3]);
+        const dx = parseFloat(tokens[i + 4]); const dy = parseFloat(tokens[i + 5]);
+        cx += dx; cy += dy;
+        const v1 = this.applyVectorTransform(dx1, dy1, transform);
+        const v2 = this.applyVectorTransform(dx2, dy2, transform);
+        const v = this.applyVectorTransform(dx, dy, transform);
+        result += ` c ${v1.x} ${v1.y} ${v2.x} ${v2.y} ${v.x} ${v.y}`;
+        i += 6;
+      }
+      else if (currentCmd === 'S' || currentCmd === 'Q') {
+        const x1 = parseFloat(tokens[i]); const y1 = parseFloat(tokens[i + 1]);
+        const x = parseFloat(tokens[i + 2]); const y = parseFloat(tokens[i + 3]);
+        cx = x; cy = y;
+        const p1 = this.applyPointTransform(x1, y1, transform);
+        const p = this.applyPointTransform(x, y, transform);
+        result += ` ${currentCmd} ${p1.x} ${p1.y} ${p.x} ${p.y}`;
+        i += 4;
+      }
+      else if (currentCmd === 's' || currentCmd === 'q') {
+        const dx1 = parseFloat(tokens[i]); const dy1 = parseFloat(tokens[i + 1]);
+        const dx = parseFloat(tokens[i + 2]); const dy = parseFloat(tokens[i + 3]);
+        cx += dx; cy += dy;
+        const v1 = this.applyVectorTransform(dx1, dy1, transform);
+        const v = this.applyVectorTransform(dx, dy, transform);
+        result += ` ${currentCmd} ${v1.x} ${v1.y} ${v.x} ${v.y}`;
+        i += 4;
+      }
+      else if (currentCmd === 'A') {
+        const rx = parseFloat(tokens[i]); const ry = parseFloat(tokens[i + 1]);
+        const xAxisRot = parseFloat(tokens[i + 2]);
+        const largeArc = tokens[i + 3]; let sweep = tokens[i + 4];
+        const x = parseFloat(tokens[i + 5]); const y = parseFloat(tokens[i + 6]);
+        cx = x; cy = y;
+
+        const angleDeg = Math.atan2(transform.b, transform.a) * 180 / Math.PI;
+        const newXAxisRot = xAxisRot + angleDeg;
+        const det = transform.a * transform.d - transform.b * transform.c;
+        if (det < 0) sweep = sweep === '1' ? '0' : '1';
+        const rxTrans = rx * transform.sx;
+        const ryTrans = ry * transform.sy;
+        const p = this.applyPointTransform(x, y, transform);
+        result += ` A ${rxTrans} ${ryTrans} ${newXAxisRot} ${largeArc} ${sweep} ${p.x} ${p.y}`;
+        i += 7;
+      }
+      else if (currentCmd === 'a') {
+        const rx = parseFloat(tokens[i]); const ry = parseFloat(tokens[i + 1]);
+        const xAxisRot = parseFloat(tokens[i + 2]);
+        const largeArc = tokens[i + 3]; let sweep = tokens[i + 4];
+        const dx = parseFloat(tokens[i + 5]); const dy = parseFloat(tokens[i + 6]);
+        cx += dx; cy += dy;
+
+        const angleDeg = Math.atan2(transform.b, transform.a) * 180 / Math.PI;
+        const newXAxisRot = xAxisRot + angleDeg;
+        const det = transform.a * transform.d - transform.b * transform.c;
+        if (det < 0) sweep = sweep === '1' ? '0' : '1';
+        const rxTrans = rx * transform.sx;
+        const ryTrans = ry * transform.sy;
+        const v = this.applyVectorTransform(dx, dy, transform);
+        result += ` a ${rxTrans} ${ryTrans} ${newXAxisRot} ${largeArc} ${sweep} ${v.x} ${v.y}`;
+        i += 7;
+      }
+      else {
+        i++;
       }
     }
 
-    return result;
+    return result.trim();
+  }
+
+  // 这里的 rect 绘制同样被优化：直接用 L 取代 H 和 V
+  private rectToPath(attrs: Record<string, string>, transform: SvgTransform): string {
+    const origX = parseFloat(attrs['x'] ?? '0') || 0;
+    const origY = parseFloat(attrs['y'] ?? '0') || 0;
+    const w = parseFloat(attrs['width'] ?? '0') || 0;
+    const h = parseFloat(attrs['height'] ?? '0') || 0;
+    if (w <= 0 || h <= 0) return '';
+
+    let rx = parseFloat(attrs['rx'] ?? '0') || 0;
+    let ry = parseFloat(attrs['ry'] ?? '0') || 0;
+    if (rx > 0 && ry === 0) ry = rx;
+    if (ry > 0 && rx === 0) rx = ry;
+    rx = Math.min(rx, w / 2);
+    ry = Math.min(ry, h / 2);
+
+    let rawD = '';
+    if (rx > 0 && ry > 0) {
+      rawD = `M ${origX + rx} ${origY} ` +
+        `L ${origX + w - rx} ${origY} ` +
+        `A ${rx} ${ry} 0 0 1 ${origX + w} ${origY + ry} ` +
+        `L ${origX + w} ${origY + h - ry} ` +
+        `A ${rx} ${ry} 0 0 1 ${origX + w - rx} ${origY + h} ` +
+        `L ${origX + rx} ${origY + h} ` +
+        `A ${rx} ${ry} 0 0 1 ${origX} ${origY + h - ry} ` +
+        `L ${origX} ${origY + ry} ` +
+        `A ${rx} ${ry} 0 0 1 ${origX + rx} ${origY} Z`;
+    } else {
+      rawD = `M ${origX} ${origY} L ${origX + w} ${origY} L ${origX + w} ${origY + h} L ${origX} ${origY + h} Z`;
+    }
+
+    return this.translatePath(rawD, transform);
+  }
+
+  private pointsToPath(pointsStr: string, isClosed: boolean, transform: SvgTransform): string {
+    if (!pointsStr) return '';
+    const nums = pointsStr.trim().split(/[\s,]+/).map((v: string) => parseFloat(v)).filter((n: number) => !isNaN(n));
+    if (nums.length < 2) return '';
+    const p0 = this.applyPointTransform(nums[0], nums[1], transform);
+    let d = `M ${p0.x} ${p0.y}`;
+    for (let i = 2; i < nums.length - 1; i += 2) {
+      const p = this.applyPointTransform(nums[i], nums[i + 1], transform);
+      d += ` L ${p.x} ${p.y}`;
+    }
+    if (isClosed) d += ' Z';
+    return d;
   }
 
   private traverseNodes(node: Record<string, Object>, parentStyle: SvgInheritedStyle, output: SvgItemData[]): void {
     const children = this.getNodeChildren(node);
     for (const child of children) {
       const tag = this.getNodeName(child);
-      if (!tag || tag === 'defs' || tag === 'style' || tag === 'title' || tag === 'desc') {
-        continue;
-      }
+      if (!tag || tag === 'defs' || tag === 'style' || tag === 'title' || tag === 'desc') continue;
 
       const attrs = this.getNodeAttributes(child);
       const tf = this.parseTransform(attrs['transform']);
-      const parentTf = parentStyle.transform ?? { tx: 0, ty: 0, sx: 1, sy: 1 };
+      const parentTf = parentStyle.transform ?? { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0, sx: 1, sy: 1 };
 
       const currentStyle: SvgInheritedStyle = {
         fill: attrs['fill'] ?? parentStyle.fill,
@@ -478,12 +588,7 @@ export struct SVGImage {
         strokeLineCap: attrs['stroke-linecap'] ?? attrs['strokeLinecap'] ?? parentStyle.strokeLineCap,
         strokeLineJoin: attrs['stroke-linejoin'] ?? attrs['strokeLinejoin'] ?? parentStyle.strokeLineJoin,
         opacity: attrs['opacity'] ?? parentStyle.opacity,
-        transform: {
-          tx: parentTf.tx + tf.tx * parentTf.sx,
-          ty: parentTf.ty + tf.ty * parentTf.sy,
-          sx: parentTf.sx * tf.sx,
-          sy: parentTf.sy * tf.sy
-        },
+        transform: this.multiplyMatrix(parentTf, tf),
       };
 
       if (tag === 'g' || tag === 'a') {
@@ -491,49 +596,34 @@ export struct SVGImage {
         continue;
       }
 
-      const curTx = currentStyle.transform!.tx;
-      const curTy = currentStyle.transform!.ty;
-      const curSx = currentStyle.transform!.sx;
-      const curSy = currentStyle.transform!.sy;
-
+      const currentTransform = currentStyle.transform!;
       let commands = '';
+
       if (tag === 'path') {
-        const rawD = attrs['d'] ?? '';
-        commands = this.translatePath(rawD, currentStyle.transform);
+        commands = this.translatePath(attrs['d'] ?? '', currentTransform);
       } else if (tag === 'line') {
-        const x1 = ((parseFloat(attrs['x1'] ?? '0') || 0) * curSx) + curTx;
-        const y1 = ((parseFloat(attrs['y1'] ?? '0') || 0) * curSy) + curTy;
-        const x2 = ((parseFloat(attrs['x2'] ?? '0') || 0) * curSx) + curTx;
-        const y2 = ((parseFloat(attrs['y2'] ?? '0') || 0) * curSy) + curTy;
-        commands = `M ${x1} ${y1} L ${x2} ${y2}`;
+        const p1 = this.applyPointTransform(parseFloat(attrs['x1'] ?? '0') || 0, parseFloat(attrs['y1'] ?? '0') || 0, currentTransform);
+        const p2 = this.applyPointTransform(parseFloat(attrs['x2'] ?? '0') || 0, parseFloat(attrs['y2'] ?? '0') || 0, currentTransform);
+        commands = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
       } else if (tag === 'polyline') {
-        commands = this.pointsToPath(attrs['points'] ?? '', false, currentStyle.transform);
+        commands = this.pointsToPath(attrs['points'] ?? '', false, currentTransform);
       } else if (tag === 'polygon') {
-        commands = this.pointsToPath(attrs['points'] ?? '', true, currentStyle.transform);
+        commands = this.pointsToPath(attrs['points'] ?? '', true, currentTransform);
       } else if (tag === 'rect') {
-        commands = this.rectToPath(attrs, currentStyle.transform);
+        commands = this.rectToPath(attrs, currentTransform);
       } else if (tag === 'circle') {
-        const cx = ((parseFloat(attrs['cx'] ?? '0') || 0) * curSx) + curTx;
-        const cy = ((parseFloat(attrs['cy'] ?? '0') || 0) * curSy) + curTy;
-        const r = (parseFloat(attrs['r'] ?? '0') || 0) * Math.min(Math.abs(curSx), Math.abs(curSy));
-        if (r > 0) {
-          commands = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
-        }
+        const p = this.applyPointTransform(parseFloat(attrs['cx'] ?? '0') || 0, parseFloat(attrs['cy'] ?? '0') || 0, currentTransform);
+        const r = (parseFloat(attrs['r'] ?? '0') || 0) * Math.min(currentTransform.sx, currentTransform.sy);
+        if (r > 0) commands = `M ${p.x - r} ${p.y} A ${r} ${r} 0 1 0 ${p.x + r} ${p.y} A ${r} ${r} 0 1 0 ${p.x - r} ${p.y} Z`;
       } else if (tag === 'ellipse') {
-        const cx = ((parseFloat(attrs['cx'] ?? '0') || 0) * curSx) + curTx;
-        const cy = ((parseFloat(attrs['cy'] ?? '0') || 0) * curSy) + curTy;
-        const rx = (parseFloat(attrs['rx'] ?? '0') || 0) * Math.abs(curSx);
-        const ry = (parseFloat(attrs['ry'] ?? '0') || 0) * Math.abs(curSy);
-        if (rx > 0 && ry > 0) {
-          commands = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
-        }
+        const p = this.applyPointTransform(parseFloat(attrs['cx'] ?? '0') || 0, parseFloat(attrs['cy'] ?? '0') || 0, currentTransform);
+        const rx = (parseFloat(attrs['rx'] ?? '0') || 0) * currentTransform.sx;
+        const ry = (parseFloat(attrs['ry'] ?? '0') || 0) * currentTransform.sy;
+        if (rx > 0 && ry > 0) commands = `M ${p.x - rx} ${p.y} A ${rx} ${ry} 0 1 0 ${p.x + rx} ${p.y} A ${rx} ${ry} 0 1 0 ${p.x - rx} ${p.y} Z`;
       }
 
-      if (!commands.trim()) {
-        continue;
-      }
+      if (!commands.trim()) continue;
 
-      // 计算最终 fill
       let resolvedFill: ResourceColor = 'none';
       if (this.fill !== undefined) {
         resolvedFill = currentStyle.fill === 'none' ? 'none' : this.fill;
@@ -547,21 +637,18 @@ export struct SVGImage {
         }
       }
 
-      // 计算最终 stroke
       let resolvedStroke: ResourceColor = 'none';
       if (this.stroke !== undefined) {
         resolvedStroke = (currentStyle.stroke && currentStyle.stroke !== 'none') || currentStyle.fill === 'none'
-          ? this.stroke
-          : (currentStyle.stroke === 'none' ? 'none' : this.stroke);
+          ? this.stroke : (currentStyle.stroke === 'none' ? 'none' : this.stroke);
       } else {
-        if (currentStyle.stroke === 'none' || !currentStyle.stroke) {
+        if (!currentStyle.stroke || currentStyle.stroke === 'none') {
           resolvedStroke = 'none';
         } else {
           resolvedStroke = currentStyle.stroke === 'currentColor' ? (this.fill ?? '#000000') : currentStyle.stroke;
         }
       }
 
-      // 计算最终 strokeWidth
       let resolvedStrokeWidth: number = 1;
       if (this.strokeWidth !== undefined) {
         resolvedStrokeWidth = this.strokeWidth;
@@ -585,48 +672,6 @@ export struct SVGImage {
         opacity: isNaN(opacity) ? 1 : opacity
       });
     }
-  }
-
-  private pointsToPath(pointsStr: string, isClosed: boolean, transform: SvgTransform = {tx:0, ty:0, sx: 1, sy: 1}): string {
-    if (!pointsStr) return '';
-    const nums = pointsStr.trim().split(/[\s,]+/).map((v: string) => parseFloat(v)).filter((n: number) => !isNaN(n));
-    if (nums.length < 2) return '';
-    let d = `M ${(nums[0] * transform.sx) + transform.tx} ${(nums[1] * transform.sy) + transform.ty}`;
-    for (let i = 2; i < nums.length - 1; i += 2) {
-      d += ` L ${(nums[i] * transform.sx) + transform.tx} ${(nums[i + 1] * transform.sy) + transform.ty}`;
-    }
-    if (isClosed) {
-      d += ' Z';
-    }
-    return d;
-  }
-
-  private rectToPath(attrs: Record<string, string>, transform: SvgTransform = {tx:0, ty:0, sx: 1, sy: 1}): string {
-    const x = ((parseFloat(attrs['x'] ?? '0') || 0) * transform.sx) + transform.tx;
-    const y = ((parseFloat(attrs['y'] ?? '0') || 0) * transform.sy) + transform.ty;
-    const w = (parseFloat(attrs['width'] ?? '0') || 0) * transform.sx;
-    const h = (parseFloat(attrs['height'] ?? '0') || 0) * transform.sy;
-    if (w === 0 || h === 0) return '';
-
-    let rx = (parseFloat(attrs['rx'] ?? '0') || 0) * Math.abs(transform.sx);
-    let ry = (parseFloat(attrs['ry'] ?? '0') || 0) * Math.abs(transform.sy);
-    if (rx > 0 && ry === 0) ry = rx;
-    if (ry > 0 && rx === 0) rx = ry;
-    rx = Math.min(rx, Math.abs(w) / 2);
-    ry = Math.min(ry, Math.abs(h) / 2);
-
-    if (rx > 0 && ry > 0) {
-      return `M ${x + rx} ${y} ` +
-        `H ${x + w - rx} ` +
-        `A ${rx} ${ry} 0 0 1 ${x + w} ${y + ry} ` +
-        `V ${y + h - ry} ` +
-        `A ${rx} ${ry} 0 0 1 ${x + w - rx} ${y + h} ` +
-        `H ${x + rx} ` +
-        `A ${rx} ${ry} 0 0 1 ${x} ${y + h - ry} ` +
-        `V ${y + ry} ` +
-        `A ${rx} ${ry} 0 0 1 ${x + rx} ${y} Z`;
-    }
-    return `M ${x} ${y} H ${x + w} V ${y + h} H ${x} Z`;
   }
 
   private parseLineCap(val?: string): LineCapStyle | undefined {
