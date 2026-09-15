@@ -12,6 +12,7 @@ interface SvgItemData {
   id: string;
   commands: string;
   fill: ResourceColor;
+  fillOpacity?: number;
   stroke: ResourceColor;
   strokeWidth: number;
   strokeLineCap?: LineCapStyle;
@@ -779,6 +780,7 @@ export struct SVGImage {
           Path()
             .commands(item.commands)
             .fill(item.fill)
+            .fillOpacity(item.fillOpacity ?? 1)
             .stroke(item.stroke)
             .strokeWidth(item.strokeWidth + 'px')
             .strokeLineCap(item.strokeLineCap ?? LineCapStyle.Round)
