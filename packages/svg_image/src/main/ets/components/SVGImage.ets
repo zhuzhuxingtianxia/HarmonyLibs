@@ -22,6 +22,7 @@ interface SvgItemData {
 
 interface SvgInheritedStyle {
   fill?: string;
+  fillOpacity?: string;
   stroke?: string;
   strokeWidth?: string;
   strokeLineCap?: string;
@@ -616,6 +617,7 @@ export struct SVGImage {
         id: attrs['id'] ?? parentStyle.id,
         role: attrs['role'] ?? attrs['data-role'] ?? parentStyle.role,
         fill: attrs['fill'] ?? parentStyle.fill,
+        fillOpacity: attrs['fill-opacity'] ?? attrs['fillOpacity'],
         stroke: attrs['stroke'] ?? parentStyle.stroke,
         strokeWidth: attrs['stroke-width'] ?? attrs['strokeWidth'] ?? parentStyle.strokeWidth,
         strokeLineCap: attrs['stroke-linecap'] ?? attrs['strokeLinecap'] ?? parentStyle.strokeLineCap,
@@ -741,11 +743,13 @@ export struct SVGImage {
       }
 
       const opacity = currentStyle.opacity ? parseFloat(currentStyle.opacity) : 1;
+      const fillOpacity = currentStyle.fillOpacity ? parseFloat(currentStyle.fillOpacity) : 1;
 
       output.push({
         id: `svg_item_${output.length}`,
         commands: commands,
         fill: finalFill,
+        fillOpacity: fillOpacity,
         stroke: finalStroke,
         strokeWidth: finalStrokeWidth,
         strokeLineCap: this.parseLineCap(currentStyle.strokeLineCap),
