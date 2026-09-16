@@ -75,5 +75,9 @@ SVGImage({source: $rawfile('svg_clock.svg'), bounds: 80,
 
 https://www.svgviewer.dev/
 
+## API限制
+
+* SDK: API12 (5.0.0)
+
 ## License
 This project is licensed under Apache License 2.0.

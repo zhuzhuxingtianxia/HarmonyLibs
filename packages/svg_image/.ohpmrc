@@ -1,0 +1,9 @@
+# 最好使用全局配置，防止key泄漏
+# 仓库地址
+publish_registry=https://ohpm.openharmony.cn/ohpm
+
+# 从 【个人中心】页面中【复制发布码】，并配置到 .ohpmrc 文件中 publish_id 字段上
+publish_id=your_publish_id
+
+# 发布
+# ohpm publish <HAR路径>

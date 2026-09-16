@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "description": "一个轻量级的svg渲染库.",
   "main": "Index.ets",
-  "author": "",
+  "author": {
+    "name": "flat",
+    "email": "zzj@qq.com",
+    "url": "https://github.com/zhuzhuxingtianxia/HarmonyLibs/tree/main/packages/svg_image"
+  },
+  "repository": "https://github.com/zhuzhuxingtianxia/HarmonyLibs/tree/main/packages/svg_image",
   "license": "Apache-2.0",
   "dependencies": {}
 }
