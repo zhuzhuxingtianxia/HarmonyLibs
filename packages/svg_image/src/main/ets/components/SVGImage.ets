@@ -77,6 +77,9 @@ export struct SVGImage {
   @Local private viewBoxHeight: number = 24;
   @Local private svgWidth: number = 0;
   @Local private svgHeight: number = 0;
+  // defs 解析缓存：CSS 类样式 + 渐变色回退
+  private cssClassStyles: Record<string, Record<string, string>> = {};
+  private gradientMap: Record<string, string> = {};
 
   @Monitor('source', 'fill', 'stroke', 'strokeWidth', 'roleStyles', 'colorSwap', 'idStyles')
   onPropsChanged(): void {
@@ -233,6 +236,12 @@ export struct SVGImage {
         this.viewBoxHeight = this.svgHeight > 0 ? this.svgHeight : 24;
       }
 
+      // 解析 defs 中的 CSS 类样式和渐变定义
+      this.cssClassStyles = {};
+      this.gradientMap = {};
+      this.parseCssStyles(svgNode);
+      this.parseGradientDefs(svgNode);
+
       // 提取所有矢量子节点
       const collected: SvgItemData[] = [];
       const inheritedStyle: SvgInheritedStyle = {
@@ -274,17 +283,35 @@ export struct SVGImage {
   private getNodeAttributes(node: Record<string, Object>): Record<string, string> {
     const rawAttrs = (node['_attributes'] ?? node['attributes']) as Record<string, string> | undefined;
     const result: Record<string, string> = {};
+
+    // 1. 先合并 CSS class 样式（最低优先级）
+    if (rawAttrs && typeof rawAttrs === 'object') {
+      const classVal = rawAttrs['class'];
+      if (classVal && this.cssClassStyles) {
+        const classNames = String(classVal).trim().split(/\s+/);
+        for (const cls of classNames) {
+          const classStyle = this.cssClassStyles[cls];
+          if (classStyle) {
+            for (const ck of Object.keys(classStyle)) {
+              result[ck] = classStyle[ck];
+            }
+          }
+        }
+      }
+    }
+
+    // 2. 元素自身属性覆盖 class 样式
     if (rawAttrs && typeof rawAttrs === 'object') {
       for (const k of Object.keys(rawAttrs)) {
         result[k] = String(rawAttrs[k]);
       }
     }
+
+    // 3. 内联 style 属性优先级最高
     if (result['style']) {
       const styleObj = this.parseStyleAttr(result['style']);
       for (const sk of Object.keys(styleObj)) {
-        if (!result[sk]) {
-          result[sk] = styleObj[sk];
-        }
+        result[sk] = styleObj[sk];
       }
     }
     return result;
@@ -629,7 +656,11 @@ export struct SVGImage {
     const children = this.getNodeChildren(node);
     for (const child of children) {
       const tag = this.getNodeName(child);
-      if (!tag || tag === 'defs' || tag === 'style' || tag === 'title' || tag === 'desc') continue;
+      // 跳过非渲染定义元素（defs 内的渐变/样式已提前解析，clipPath/mask/filter/pattern 暂不支持）
+      if (!tag || tag === 'style' || tag === 'title' || tag === 'desc' ||
+          tag === 'lineargradient' || tag === 'radialgradient' ||
+          tag === 'clippath' || tag === 'mask' || tag === 'filter' || tag === 'pattern' ||
+          tag === 'symbol' || tag === 'marker') continue;
 
       const attrs = this.getNodeAttributes(child);
       const tf = this.parseTransform(attrs['transform']);
@@ -687,22 +718,28 @@ export struct SVGImage {
       // ====== 基础颜色及 Override 处理流程 ======
       // ==========================================
 
-      // 1. 基础 Fill 解析
+      // 1. 基础 Fill 解析（含 url(#id) 渐变回退）
       let resolvedFill: ResourceColor = 'none';
       let originalFillString: string | undefined = undefined;
 
       if (currentStyle.fill === 'none') {
         resolvedFill = 'none';
       } else if (currentStyle.fill) {
-        resolvedFill = currentStyle.fill === 'currentColor' ? (this.stroke ?? '#000000') : currentStyle.fill;
-        originalFillString = currentStyle.fill === 'currentColor' ? undefined : currentStyle.fill;
+        let fillVal = currentStyle.fill;
+        // 解析 url(#id) 渐变引用，回退到首个 stop-color
+        const gradientFill = this.resolveUrlColor(fillVal);
+        if (gradientFill !== undefined) {
+          fillVal = gradientFill;
+        }
+        resolvedFill = fillVal === 'currentColor' ? (this.stroke ?? '#000000') : fillVal;
+        originalFillString = fillVal === 'currentColor' ? undefined : fillVal;
       } else {
         resolvedFill = (currentStyle.stroke && currentStyle.stroke !== 'none') ? 'none' : '#000000';
         originalFillString = '#000000';
       }
 
       let finalFill = resolvedFill;
-      if (this.fill !== undefined && resolvedFill !== 'none') {
+      if (this.fill !== undefined) {
         finalFill = this.fill;
       }
 
@@ -713,8 +750,14 @@ export struct SVGImage {
       if (!currentStyle.stroke || currentStyle.stroke === 'none') {
         resolvedStroke = 'none';
       } else {
-        resolvedStroke = currentStyle.stroke === 'currentColor' ? (this.fill ?? '#000000') : currentStyle.stroke;
-        originalStrokeString = currentStyle.stroke === 'currentColor' ? undefined : currentStyle.stroke;
+        let strokeVal = currentStyle.stroke;
+        // 解析 url(#id) 渐变引用，回退到首个 stop-color
+        const gradientStroke = this.resolveUrlColor(strokeVal);
+        if (gradientStroke !== undefined) {
+          strokeVal = gradientStroke;
+        }
+        resolvedStroke = strokeVal === 'currentColor' ? (this.fill ?? '#000000') : strokeVal;
+        originalStrokeString = strokeVal === 'currentColor' ? undefined : strokeVal;
       }
 
       let finalStroke = resolvedStroke;
@@ -798,6 +841,128 @@ export struct SVGImage {
     if (s === 'round') return LineJoinStyle.Round;
     if (s === 'miter') return LineJoinStyle.Miter;
     if (s === 'bevel') return LineJoinStyle.Miter;
+    return undefined;
+  }
+
+  /**
+   * 解析 <style> 标签中的 CSS 类样式
+   * 遍历 SVG 树查找所有 <style> 元素，解析其文本内容中的 CSS 规则
+   */
+  private parseCssStyles(node: Record<string, Object>): void {
+    const children = this.getNodeChildren(node);
+    for (const child of children) {
+      const tag = this.getNodeName(child);
+      if (tag === 'style') {
+        // 提取 <style> 元素中的文本内容
+        const styleText = this.getTextContent(child);
+        if (styleText) {
+          this.parseCssRules(styleText);
+        }
+      } else if (tag === 'defs' || tag === 'svg' || tag === 'g') {
+        // 递归进入容器节点查找嵌套的 <style>
+        this.parseCssStyles(child);
+      }
+    }
+  }
+
+  /**
+   * 提取节点的文本内容（_text 或 CDATA）
+   */
+  private getTextContent(node: Record<string, Object>): string {
+    // 直接文本
+    const text = node['_text'] as string | undefined;
+    if (text) return text;
+    // CDATA 内容
+    const cdata = node['_cdata'] as string | undefined;
+    if (cdata) return cdata;
+    // 子元素中的文本/CDATA
+    const children = this.getNodeChildren(node);
+    let result = '';
+    for (const child of children) {
+      const childType = (child['_type'] ?? '') as string;
+      if (childType === 'text') {
+        const t = (child['_text'] ?? '') as string;
+        result += t;
+      } else if (childType === 'cdata') {
+        const c = (child['_cdata'] ?? '') as string;
+        result += c;
+      } else {
+        // 递归提取
+        result += this.getTextContent(child);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * 解析 CSS 规则文本，提取类选择器样式
+   * 支持: .className { prop: value; } 格式
+   */
+  private parseCssRules(cssText: string): void {
+    // 移除 CSS 注释
+    const cleaned = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
+    // 匹配 .className { ... } 规则
+    const ruleRegex = /\.([a-zA-Z0-9_-]+)\s*\{([^}]*)\}/g;
+    let match: RegExpExecArray | null;
+    while ((match = ruleRegex.exec(cleaned)) !== null) {
+      const className = match[1];
+      const body = match[2];
+      const props = this.parseStyleAttr(body);
+      this.cssClassStyles[className] = props;
+    }
+  }
+
+  /**
+   * 解析渐变定义（linearGradient / radialGradient）
+   * 遍历整棵 SVG 树，收集所有渐变的 id → 首个 stop-color 映射
+   * HarmonyOS Shape/Path 不支持渐变填充，故回退为首个 stop-color 实色
+   */
+  private parseGradientDefs(node: Record<string, Object>): void {
+    this.collectGradients(node);
+  }
+
+  /**
+   * 递归收集渐变定义
+   */
+  private collectGradients(node: Record<string, Object>): void {
+    const children = this.getNodeChildren(node);
+    for (const child of children) {
+      const tag = this.getNodeName(child);
+      if (tag === 'lineargradient' || tag === 'radialgradient') {
+        const attrs = this.getNodeAttributes(child);
+        const id = attrs['id'];
+        if (id) {
+          // 查找首个 <stop> 元素的 stop-color
+          const stopChildren = this.getNodeChildren(child);
+          for (const stop of stopChildren) {
+            if (this.getNodeName(stop) === 'stop') {
+              const stopAttrs = this.getNodeAttributes(stop);
+              const stopColor = stopAttrs['stop-color'] ?? stopAttrs['stopColor'];
+              if (stopColor) {
+                this.gradientMap[id] = stopColor;
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        // 递归进入 defs、g、svg 等容器
+        this.collectGradients(child);
+      }
+    }
+  }
+
+  /**
+   * 解析 url(#id) 引用，从 gradientMap 中查找回退颜色
+   * @returns 回退颜色字符串，未匹配则返回 undefined
+   */
+  private resolveUrlColor(colorStr: string): string | undefined {
+    if (!colorStr) return undefined;
+    const urlMatch = colorStr.match(/url\s*\(\s*#([^)]+)\s*\)/);
+    if (urlMatch && urlMatch[1]) {
+      const refId = urlMatch[1].trim();
+      return this.gradientMap[refId] ?? undefined;
+    }
     return undefined;
   }
 

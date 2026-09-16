@@ -41,8 +41,14 @@ struct SvgImageDemo {
             })
           }
 
+          Row({space: 10}){
+            SVGImage({source: $rawfile('line.svg'), bounds: 100})
+            SVGImage({source: $rawfile('line.svg'), bounds: 100, fill: '#00583b'})
+          }
+
           Flex({
             direction: FlexDirection.Row,wrap: FlexWrap.Wrap,
+            justifyContent: FlexAlign.Center,
             space: {main: LengthMetrics.vp(10), cross: LengthMetrics.vp(20)}
           }) {
             SVGImage({source: $rawfile('7doodle.svg'), bounds: 100})
