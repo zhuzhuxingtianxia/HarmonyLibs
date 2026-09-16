@@ -5,12 +5,13 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "${SCRIPT_DIR}"
 
 # ================= 配置区 =================
-HAR_MODULE_NAME="svg_image"
-HAR_MODULE_PATH="packages/svg_image"
+# 获取第二个参数作为模块名称，默认svg_image
+HAR_MODULE_NAME="${2:-svg_image}"
+HAR_MODULE_PATH="packages/${HAR_MODULE_NAME}"
 OUTPUT_DIR="./build/build_outputs"
 BUILD_DATE=$(date +%Y%m%d_%H%M%S)
 
-# 动态解析构建模式：支持传入 debug 或 release，默认为 release
+# 动态解析获取参数构建模式：支持传入 debug 或 release，默认为 release
 BUILD_MODE="${1:-release}"
 # 转为小写以兼容大小写输入
 BUILD_MODE=$(echo "$BUILD_MODE" | tr '[:upper:]' '[:lower:]')

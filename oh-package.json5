@@ -1,6 +1,11 @@
 {
   "modelVersion": "6.1.1",
   "description": "Please describe the basic information.",
+  "scripts": {
+    "build": "hvigorw assembleHap",
+    "clean": "hvigorw clean",
+    "build_svg": "bash ./build_script.sh release svg_image",
+  },
   "dependencies": {
     "@flat/svg_image": "file:./packages/svg_image"
   },
