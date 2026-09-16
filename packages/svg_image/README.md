@@ -31,6 +31,8 @@ ohpm install @flat/svg_image
 
 ## 效果
 
+![效果](https://github.com/zhuzhuxingtianxia/HarmonyLibs/blob/main/packages/svg_image/screenshot.png?raw=true)
+
 ## 使用示例
 
 ```c
