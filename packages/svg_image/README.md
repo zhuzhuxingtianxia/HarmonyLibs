@@ -49,12 +49,14 @@ SVGImage({source: $rawfile('visitor_icon.svg'), bounds: 60, colorSwap: {'#FFFFFF
 SVGImage({source: $rawfile('line.svg'), bounds: 100, fill: '#00583b'})
 
 // 根据ID修改颜色
-SVGImage({source: $rawfile('svg_clock.svg'), bounds: 80,
-              idStyles: {
-                "Bg": { fill: '#F97316'}
-              },
-              colorSwap: {"#FFC50D": "#FF0000", '#333333': '#0000FF'}
-            })
+SVGImage({
+  source: $rawfile('svg_clock.svg'), 
+  bounds: 80,
+  idStyles: {
+    "Bg": { fill: '#F97316'}
+  },
+  colorSwap: {"#FFC50D": "#FF0000", '#333333': '#0000FF'}
+})
 
 ```
 
