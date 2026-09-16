@@ -73,17 +73,41 @@ if confirm; then
 
   echo "📤 [4/4] 检查自动上传逻辑..."
 
-  if [ "$BUILD_MODE" == "release" ] && ! command -v ohpm &> /dev/null; then
-      echo "❌ ERROR: 系统未安装 ohpm 命令行工具！"
-      exit 1
+  if [ "$BUILD_MODE" == "release" ]; then
+      # 1. 校验 ohpm 命令行工具是否存在
+      if ! command -v ohpm &> /dev/null; then
+          echo "❌ ERROR: 系统未安装 ohpm 命令行工具！"
+          exit 1
+      fi
+
+      # 2. 校验 ohpm 配置项 (publish_id 和 key_path)
+      OHPM_PUBLISH_ID=$(ohpm config get publish_id 2>/dev/null || echo "")
+      OHPM_KEY_PATH=$(ohpm config get key_path 2>/dev/null || echo "")
+
+      if [ -z "$OHPM_PUBLISH_ID" ] || [ "$OHPM_PUBLISH_ID" == "null" ] || [ "$OHPM_PUBLISH_ID" == "undefined" ]; then
+          echo "❌ ERROR: OHPM 未配置 'publish_id'！"
+          echo "💡 请先执行配置: ohpm config set publish_id <your_publish_id>"
+          exit 1
+      fi
+
+      if [ -z "$OHPM_KEY_PATH" ] || [ "$OHPM_KEY_PATH" == "null" ] || [ "$OHPM_KEY_PATH" == "undefined" ]; then
+          echo "❌ ERROR: OHPM 未配置 'key_path' (私钥路径)！"
+          echo "💡 请先执行配置: ohpm config set key_path <path_to_your_private_key>"
+          exit 1
+      fi
+
+      # 校验密钥文件在本地路径是否存在
+      if [ ! -f "$OHPM_KEY_PATH" ]; then
+          echo "❌ ERROR: key_path 指向的文件不存在: ${OHPM_KEY_PATH}"
+          exit 1
+      fi
+
+      echo "📡 正在发布 ${HAR_MODULE_NAME} 到 OHPM 仓库..."
+      # 执行 ohpm 发布命令
+      ohpm publish "${OUTPUT_DIR}/${TARGET_NAME}"
+
+      echo "🎉 发布成功！"
   fi
-
-  echo "📡 正在发布 ${HAR_MODULE_NAME} 到 OHPM 仓库..."
-  # 执行 ohpm 发布命令
-  ohpm publish "${OUTPUT_DIR}/${TARGET_NAME}"
-
-  echo "🎉 发布成功！"
-
 else
   echo "💡 已取消发布到 OHPM 仓库。"
 fi
