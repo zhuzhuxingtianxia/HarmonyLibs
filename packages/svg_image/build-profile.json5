@@ -5,6 +5,12 @@
       "copyCodeResource": {
         "enable": false
       }
+    },
+    "packingOptions": {
+      "asset": {
+        "include": [],
+        "exclude": []
+      }
     }
   },
   "buildOptionSet": [

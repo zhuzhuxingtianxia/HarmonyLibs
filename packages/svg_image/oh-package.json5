@@ -1,8 +1,14 @@
 {
   "name": "@flat/svg_image",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "一个轻量级的svg渲染库.",
   "main": "Index.ets",
+  "keywords": [
+    "UI",
+    "SVG",
+    "Path",
+    "Shape"
+  ],
   "author": {
     "name": "flat",
     "email": "zzj@qq.com",
