@@ -33,7 +33,9 @@ struct SvgImageDemo {
           }
           Row({space: 10}) {
             SVGImage({source: $rawfile('svg_clock.svg'), bounds: 80})
-            SVGImage({source: $rawfile('svg_clock.svg'), bounds: 80,
+            SVGImage({
+              source: $rawfile('svg_clock.svg'),
+              bounds: 80,
               idStyles: {
                 "Bg": { fill: '#F97316'}
               },
