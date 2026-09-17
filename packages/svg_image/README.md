@@ -2,7 +2,7 @@
 # SVGImage
 
 ## 简介
-SVGImage一个基于Shape的轻量级svg渲染库, 解析SVG图片并渲染到页面上。支持轻量级静态矢量图标的.svg资源文件。
+[SVGImage](https://ohpm.openharmony.cn/#/cn/detail/@flat%2Fsvg_image)一个基于Shape的轻量级svg渲染库, 解析SVG图片并渲染到页面上。支持轻量级静态矢量图标的.svg资源文件。
 
 ## 下载安装
 ```
