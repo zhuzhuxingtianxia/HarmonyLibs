@@ -1,4 +1,3 @@
-
 const DEFAULT_MARKER_SIZE: number = 20; // 默认滑块宽高
 const TRACK_HEIGHT: number = 2;
 
@@ -10,7 +9,6 @@ export interface SliderTrackStyle {
 
 @ComponentV2
 export struct DefaultThumb {
-
   @Param color: ResourceColor = Color.White;
   @Param thumbSize: number = DEFAULT_MARKER_SIZE;
 
@@ -52,7 +50,7 @@ enum MarkerType {
 }
 
 /**
- * @description 双向范围滑块
+ * @description 双向范围滑块，支持 allowRange 允许的滑动范围限制
  */
 @ComponentV2
 export struct RangeSlider {
@@ -66,7 +64,7 @@ export struct RangeSlider {
   // 是否与滑块对齐
   @Param isAlignment: boolean = true;
   // 是否禁止滑动
-  @Param disable:boolean = false;
+  @Param disable: boolean = false;
   // 允许滑动的范围
   @Param allowRange?: SlideRange = undefined;
   @Param thumbSize: number = DEFAULT_MARKER_SIZE;
@@ -102,30 +100,56 @@ export struct RangeSlider {
     }
   }
 
-  @Monitor('min', 'max', 'step', 'minDistance')
+  @Monitor('min', 'max', 'step', 'minDistance', 'allowRange')
   onRangeChanged(): void {
     if (this.initialized && !this.isDragging) {
       this.initValues();
     }
   }
 
+  /**
+   * 获取当前允许的绝对最小边界
+   */
+  @Computed
+  private get effectiveMin(): number {
+    if (this.allowRange && this.allowRange.from !== undefined) {
+      return Math.max(this.min, this.allowRange.from);
+    }
+    return this.min;
+  }
+
+  /**
+   * 获取当前允许的绝对最大边界
+   */
+  @Computed
+  private get effectiveMax(): number {
+    if (this.allowRange && this.allowRange.to !== undefined) {
+      return Math.min(this.max, this.allowRange.to);
+    }
+    return this.max;
+  }
+
   private initValues(): void {
-    if (this.max < this.min) {
-      this.leftValue = this.min;
-      this.rightValue = this.min;
+    if (this.effectiveMax < this.effectiveMin) {
+      this.leftValue = this.effectiveMin;
+      this.rightValue = this.effectiveMin;
       return;
     }
 
-    const first = Math.max(this.min, Math.min(this.max, this.values[0]));
-    const second = Math.max(this.min, Math.min(this.max, this.values[1]));
+    const first = Math.max(this.effectiveMin, Math.min(this.effectiveMax, this.values[0]));
+    const second = Math.max(this.effectiveMin, Math.min(this.effectiveMax, this.values[1]));
 
-    this.leftValue = Math.min(first, second);
-    this.rightValue = Math.max(first, second);
+    let lVal = Math.min(first, second);
+    let rVal = Math.max(first, second);
 
-    if (this.rightValue - this.leftValue < this.actualMinDistance) {
-      this.rightValue = Math.min(this.max, this.leftValue + this.actualMinDistance);
-      this.leftValue = Math.max(this.min, this.rightValue - this.actualMinDistance);
+    // 间距校验
+    if (rVal - lVal < this.actualMinDistance) {
+      rVal = Math.min(this.effectiveMax, lVal + this.actualMinDistance);
+      lVal = Math.max(this.effectiveMin, rVal - this.actualMinDistance);
     }
+
+    this.leftValue = lVal;
+    this.rightValue = rVal;
   }
 
   // 滑块容器高度：取左右滑块尺寸的最大值
@@ -155,13 +179,13 @@ export struct RangeSlider {
     if (this.usableWidth <= 0 || this.range <= 0) {
       return 0;
     }
-    return ((value - this.min) / this.range) * (this.isAlignment ? this.usableWidth - this.markerSize :  this.usableWidth);
+    return ((value - this.min) / this.range) * (this.isAlignment ? this.usableWidth - this.markerSize : this.usableWidth);
   }
 
   private normalizeStep(value: number): number {
     const actualStep = this.step > 0 ? this.step : 1;
     const result = this.min + Math.round((value - this.min) / actualStep) * actualStep;
-    return Math.max(this.min, Math.min(this.max, Number(result.toFixed(8))));
+    return Math.max(this.effectiveMin, Math.min(this.effectiveMax, Number(result.toFixed(8))));
   }
 
   @Computed
@@ -170,7 +194,7 @@ export struct RangeSlider {
   }
 
   private handleDragUpdate(offsetX: number): void {
-    if (this.usableWidth <= 0) return;
+    if (this.usableWidth <= 0 || this.disable) return;
 
     const deltaX = offsetX - this.baseOffset;
     const deltaValue = (deltaX / this.usableWidth) * this.range;
@@ -181,10 +205,10 @@ export struct RangeSlider {
       const value = this.normalizeStep(candidate);
 
       if (value <= this.rightValue - minDistance) {
-        this.leftValue = value;
+        this.leftValue = Math.max(this.effectiveMin, value);
       } else if (minDistance === 0 && value > this.rightValue) {
         this.leftValue = this.rightValue;
-        this.rightValue = value;
+        this.rightValue = Math.min(this.effectiveMax, value);
         this.activeMarker = MarkerType.RIGHT;
         this.baseOffset = offsetX;
         this.dragStartRightValue = this.rightValue;
@@ -196,10 +220,10 @@ export struct RangeSlider {
       const value = this.normalizeStep(candidate);
 
       if (value >= this.leftValue + minDistance) {
-        this.rightValue = value;
+        this.rightValue = Math.min(this.effectiveMax, value);
       } else if (minDistance === 0 && value < this.leftValue) {
         this.rightValue = this.leftValue;
-        this.leftValue = value;
+        this.leftValue = Math.max(this.effectiveMin, value);
         this.activeMarker = MarkerType.LEFT;
         this.baseOffset = offsetX;
         this.dragStartLeftValue = this.leftValue;
@@ -212,7 +236,7 @@ export struct RangeSlider {
   }
 
   private finishDrag(): void {
-    if (!this.isDragging) {
+    if (!this.isDragging || this.disable) {
       return;
     }
     this.isDragging = false;
@@ -263,7 +287,6 @@ export struct RangeSlider {
   }
 
   build() {
-    // 使用 Stack 容器，保证所有子元素可以基于左上角叠加，再通过 translate 进行位移
     Stack({ alignContent: Alignment.TopStart }) {
       // 1. 底层轨道
       Row()
@@ -278,7 +301,7 @@ export struct RangeSlider {
         .borderRadius(this.trackHeight * 0.5)
         .translate({
           x: this.isAlignment ? 0 : this.markerSize / 2,
-          y: (this.markerSize - this.trackHeight) / 2 // 垂直居中自适应
+          y: (this.markerSize - this.trackHeight) / 2
         })
 
       // 2. 高亮区间轨道
@@ -294,7 +317,7 @@ export struct RangeSlider {
         .borderRadius(this.trackHighlightHeight * 0.5)
         .translate({
           x: this.markerSize / 2 + this.leftCenterX,
-          y: (this.markerSize - this.trackHighlightHeight) / 2 // 垂直居中自适应
+          y: (this.markerSize - this.trackHighlightHeight) / 2
         })
 
       // 3. 左滑块
@@ -305,6 +328,8 @@ export struct RangeSlider {
         x: this.leftCenterX,
       })
       .zIndex(this.activeMarker === MarkerType.LEFT ? 2 : 1)
+      .enabled(!this.disable)
+      .opacity(this.disable ? 0.6 : 1)
       .responseRegion({
         x: -10,
         y: -10,
@@ -314,6 +339,7 @@ export struct RangeSlider {
       .gesture(
         PanGesture({ direction: PanDirection.Horizontal })
           .onActionStart((event: GestureEvent) => {
+            if (this.disable) return;
             this.isDragging = true;
             this.activeMarker = MarkerType.LEFT;
             this.dragStartLeftValue = this.leftValue;
@@ -336,6 +362,8 @@ export struct RangeSlider {
         x: this.rightCenterX,
       })
       .zIndex(this.activeMarker === MarkerType.RIGHT ? 2 : 1)
+      .enabled(!this.disable)
+      .opacity(this.disable ? 0.6 : 1)
       .responseRegion({
         x: -10,
         y: -10,
@@ -345,6 +373,7 @@ export struct RangeSlider {
       .gesture(
         PanGesture({ direction: PanDirection.Horizontal })
           .onActionStart((event: GestureEvent) => {
+            if (this.disable) return;
             this.isDragging = true;
             this.activeMarker = MarkerType.RIGHT;
             this.dragStartLeftValue = this.leftValue;
