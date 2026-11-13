@@ -12,7 +12,7 @@
     "packingOptions": {
       "asset": {
         "include": [],
-        "exclude": []
+        "exclude": [ "**/*.png","**/.DS_Store"]
       }
     }
   },
