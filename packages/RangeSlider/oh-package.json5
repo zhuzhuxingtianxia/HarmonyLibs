@@ -1,9 +1,13 @@
 {
   "name": "@flat/range_slider",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "RangeSlider一个双滑块范围选择组件",
   "main": "Index.ets",
-  "author": "",
+  "author": {
+    "name": "flat",
+    "email": "zzj@qq.com",
+  },
+  "repository": "https://example.com",
   "license": "Apache-2.0",
   "dependencies": {}
 }

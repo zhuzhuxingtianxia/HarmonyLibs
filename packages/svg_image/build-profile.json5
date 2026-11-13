@@ -6,6 +6,9 @@
         "enable": false
       }
     },
+    "arkOptions":{
+      "byteCodeHar": false
+    },
     "packingOptions": {
       "asset": {
         "include": [],
