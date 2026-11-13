@@ -8,7 +8,8 @@ struct Index {
 
   dataSource: RouteItem[] = [
     {title: 'SvgImage', routeName: 'SvgImageDemo'},
-    {title: 'FlatTable', routeName: 'FlatTableDemo'},
+    {title: 'SvgImage', routeName: 'SvgImageDemo'},
+    {title: 'RangeSlider', routeName: 'RangeSliderDemo'},
   ];
 
   build() {

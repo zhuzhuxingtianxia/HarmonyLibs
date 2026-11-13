@@ -9,6 +9,14 @@
       }
     },
     {
+      "name": "RangeSliderDemo",
+      "pageSourceFile": "src/main/ets/pages/RangeSliderDemo.ets",
+      "buildFunction": "RangeSliderDemoBuilder",
+      "data": {
+        "description": "RangeSlider 组件测试"
+      }
+    },
+    {
       "name": "FlatTableDemo",
       "pageSourceFile": "src/main/ets/pages/FlatTableDemo.ets",
       "buildFunction": "FlatTableDemoBuilder",

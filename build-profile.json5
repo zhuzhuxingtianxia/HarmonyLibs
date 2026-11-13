@@ -49,6 +49,10 @@
     {
       "name": "svg_image",
       "srcPath": "./packages/svg_image",
+    },
+    {
+      "name": "RangeSlider",
+      "srcPath": "./packages/RangeSlider",
     }
   ]
 }

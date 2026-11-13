@@ -5,6 +5,8 @@
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {}
+  "dependencies": {
+    "@flat/range_slider": "file:../packages/RangeSlider"
+  }
 }
 
