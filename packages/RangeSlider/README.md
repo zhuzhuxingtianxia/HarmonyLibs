@@ -19,7 +19,7 @@ ohpm install @flat/range_slider
 
 
 ## 效果
-![效果](https://github.com/zhuzhuxingtianxia/HarmonyLibs/blob/main/packages/RangeSlider/video.mov)
+![效果](https://github.com/zhuzhuxingtianxia/HarmonyLibs/blob/main/packages/RangeSlider/video.mp4)
 ![效果](https://github.com/zhuzhuxingtianxia/HarmonyLibs/blob/main/packages/RangeSlider/shot.png)
 
 ## 接口说明
