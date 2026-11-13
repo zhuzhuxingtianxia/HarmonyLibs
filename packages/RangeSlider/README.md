@@ -41,9 +41,9 @@ ohpm install @flat/range_slider
 | onValuesChangeFinish | 滑动事件，滑动结束时调用 | Event            | 否           |
 
 
-## API限制
+## 支持的API版本
 
-* SDK: API12 (5.0.0)
+* SDK: API >= 12 (5.0.0)
 
 ## 使用示例
 
