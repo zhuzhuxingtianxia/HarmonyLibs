@@ -1,5 +1,5 @@
 
-# SVGImage
+# RangeSlider
 
 ## 简介
 RangeSlider是基于open harmony基础组件开发的双滑块范围选择组件。
