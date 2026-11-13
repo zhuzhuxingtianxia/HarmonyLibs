@@ -7,13 +7,15 @@
     "UI",
     "SVG",
     "Path",
-    "Shape"
+    "Shape",
+    "flat"
   ],
   "author": {
     "name": "flat",
     "email": "zzj@qq.com",
-    "url": "https://github.com/zhuzhuxingtianxia/HarmonyLibs/tree/main/packages/svg_image"
+    "url": "https://github.com/zhuzhuxingtianxia"
   },
+  "homepage": "https://github.com/zhuzhuxingtianxia",
   "repository": "https://github.com/zhuzhuxingtianxia/HarmonyLibs/tree/main/packages/svg_image",
   "license": "Apache-2.0",
   "dependencies": {}
