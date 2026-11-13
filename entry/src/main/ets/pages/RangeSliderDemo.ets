@@ -139,6 +139,7 @@ struct RangeSliderDemo {
           })
           // 自定义滑块 + 值显示
           RangeSlider({
+            values: this.values3,
             thumbLeft: ()=>{this.customThumbBuilder1(true)},
             thumbRight: ()=>{this.customThumbBuilder1(false)},
             onValuesChange:(values: [number,number])=>{
