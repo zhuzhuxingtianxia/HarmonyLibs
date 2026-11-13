@@ -3,6 +3,10 @@
   "version": "1.0.1",
   "description": "一个轻量级的svg渲染库.",
   "main": "Index.ets",
+  "tags": [
+    "UI",
+    "SVG"
+  ],
   "keywords": [
     "UI",
     "SVG",
