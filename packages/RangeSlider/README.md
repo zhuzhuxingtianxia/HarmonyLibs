@@ -20,7 +20,7 @@ ohpm install @flat/range_slider
 
 ## 效果
 
-![效果](https://github.com/zhuzhuxingtianxia/HarmonyLibs/blob/main/packages/svg_image/screenshot.png?raw=true)
+![效果]()
 
 ## 接口说明
 
@@ -47,28 +47,164 @@ ohpm install @flat/range_slider
 
 ## 使用示例
 
-```c
-// 默认展示
-SVGImage({source: $rawfile('visitor_icon.svg')}).backgroundColor(Color.Black)
+```
+    
+  @Local values1: [number,number] = [0,90];
+  @Local values2: [number,number] = [0,100];
+  @Local values3: [number,number] = [10,80];
 
-// 设置颜色大小
-SVGImage({source: $rawfile('visitor_icon.svg'), bounds: 60, stroke: '#f00000'})
+  @LocalBuilder
+  customThumbBuilder(isLeft: boolean) {
+    if(isLeft) {
+      CustomThumb()
+    }else{
+      CustomThumb({
+        color: Color.Orange,
+        lineColor: Color.White
+      })
+    }
+  }
 
-// 颜色值替换
-SVGImage({source: $rawfile('visitor_icon.svg'), bounds: 60, colorSwap: {'#FFFFFF': '#00FF00'}})
+  @LocalBuilder
+  customThumbBuilder1(isLeft: boolean) {
+    if(isLeft) {
+      Column(){
+        Text(`${this.values3[0]}`).fontSize(12)
+      }
+      .justifyContent(FlexAlign.Center)
+      .width(30)
+      .height(30)
+      .backgroundColor(Color.Pink)
+    }else{
+      Column(){
+        Text(`${this.values3[1]}`).fontSize(12)
+      }
+      .justifyContent(FlexAlign.Center)
+      .width(30)
+      .height(30)
+      .backgroundColor(Color.Pink)
+    }
+  }
 
-// 颜色填充设置
-SVGImage({source: $rawfile('line.svg'), bounds: 100, fill: '#00583b'})
+  @LocalBuilder
+  customThumbBuilder2() {
+    Column(){
+      Polygon()
+        .width(20)
+        .height(20)
+        .points([[10, 0], [20, 20], [0, 20]])
+        .fill(Color.Blue)
+        .translate({y: 10})
+    }
+  }
 
-// 根据ID修改颜色
-SVGImage({
-  source: $rawfile('svg_clock.svg'), 
-  bounds: 80,
-  idStyles: {
-    "Bg": { fill: '#F97316'}
-  },
-  colorSwap: {"#FFC50D": "#FF0000", '#333333': '#0000FF'}
-})
+  build() {
+    NavDestination(){
+      Scroll(){
+        Column({space: 30}){
+          // 默认
+          RangeSlider()
+          Column(){
+            Text(`${this.values1[0]}-${this.values1[1]}`)
+            // 设置最大最小值
+            Row({space: 5}){
+              Text('10')
+              RangeSlider({
+                values: this.values1,
+                max: 90,
+                min: 10,
+                thumbSize: 40,
+                onValuesChange:(values: [number,number])=>{
+                  this.values1 = values;
+                }
+              })
+                .layoutWeight(1)
+              Text('90')
+            }
+          }
+
+          Column(){
+            Text(`${this.values2[0]}-${this.values2[1]}`)
+            RangeSlider({
+              isAlignment: false,
+              trackStyle: {
+                height: 4,
+                backgroundColor: Color.Black
+              },
+              trackHighlightStyle: {
+                height: 5,
+                linearGradient: {
+                  direction:GradientDirection.Right,
+                  colors: [
+                    [Color.Green, 0],
+                    [Color.Red, 1],
+                  ]
+                }
+              },
+              onValuesChange:(values: [number,number])=>{
+                this.values2 = values;
+              }
+            })
+          }
+          RangeSlider({
+            trackStyle: {
+              height: 20,
+            },
+            trackHighlightStyle: {
+              height: 20,
+              linearGradient: {
+                direction:GradientDirection.Right,
+                colors: [
+                  [Color.Green, 0],
+                  [Color.Red, 1],
+                ]
+              }
+            },
+          })
+
+          // 自定义滑块
+          RangeSlider({
+            trackHighlightStyle: {
+              height: 3,
+              linearGradient: {
+                direction:GradientDirection.Right,
+                colors: [
+                  [Color.Green, 0],
+                  [Color.Red, 1],
+                ]
+              }
+            },
+            thumbLeft: ()=>{this.customThumbBuilder(true)},
+            thumbRight: ()=>{this.customThumbBuilder(false)},
+          })
+          // 自定义滑块 + 值显示
+          RangeSlider({
+            values: this.values3,
+            thumbLeft: ()=>{this.customThumbBuilder1(true)},
+            thumbRight: ()=>{this.customThumbBuilder1(false)},
+            onValuesChange:(values: [number,number])=>{
+              this.values3 = values;
+            }
+          })
+
+          // 自定义三角滑块
+          RangeSlider({
+            isAlignment: false,
+            thumbLeft: ()=>{this.customThumbBuilder2()},
+            thumbRight: ()=>{this.customThumbBuilder2()},
+          })
+
+        }
+        .padding(20)
+        .width('100%')
+      }
+      .width('100%')
+      .align(Alignment.TopStart)
+      .layoutWeight(1)
+      .edgeEffect(EdgeEffect.Spring, {alwaysEnabled: true})
+    }
+    .title('RangeSlider')
+    .backgroundColor('#F5F5F5')
 
 ```
 

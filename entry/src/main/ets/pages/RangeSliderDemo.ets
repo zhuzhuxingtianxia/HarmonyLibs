@@ -10,7 +10,7 @@ export function RangeSliderDemoBuilder() {
 struct RangeSliderDemo {
   pathStack: NavPathStack = new NavPathStack();
 
-  @Local values1: [number,number] = [0,90];
+  @Local values1: [number,number] = [10,90];
   @Local values2: [number,number] = [0,100];
   @Local values3: [number,number] = [10,80];
 
@@ -159,13 +159,12 @@ struct RangeSliderDemo {
         .width('100%')
       }
       .width('100%')
-      .scrollable(ScrollDirection.Vertical)
       .align(Alignment.TopStart)
       .layoutWeight(1)
       .edgeEffect(EdgeEffect.Spring, {alwaysEnabled: true})
     }
     .title('RangeSlider')
-    .backgroundColor('#F5F6F9')
+    .backgroundColor('#F5F5F5')
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack;
     })
