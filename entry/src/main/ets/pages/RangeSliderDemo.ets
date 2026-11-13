@@ -137,9 +137,13 @@ struct RangeSliderDemo {
             thumbLeft: ()=>{this.customThumbBuilder(true)},
             thumbRight: ()=>{this.customThumbBuilder(false)},
           })
-          // 自定义滑块 + 值显示
+          // 自定义滑块 + 值显示 + 范围限制
           RangeSlider({
             values: this.values3,
+            allowRange:{
+              from: 10,
+              to: 90,
+            },
             thumbLeft: ()=>{this.customThumbBuilder1(true)},
             thumbRight: ()=>{this.customThumbBuilder1(false)},
             onValuesChange:(values: [number,number])=>{
