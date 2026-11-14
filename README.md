@@ -15,6 +15,7 @@ OpenHarmony鸿蒙制品库
     "name": "",
     "email": "",
   },
+  "private": false,
   "homepage": "https://github.com",
   "repository": "https://github.com",
   "keywords": [
